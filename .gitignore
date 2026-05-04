@@ -20,6 +20,10 @@
 # production
 /build
 
+# local reference/checkouts and private runtime files
+/agency/
+/storage/
+
 # misc
 .DS_Store
 *.pem

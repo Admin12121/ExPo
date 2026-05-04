@@ -4,11 +4,10 @@ import {
   ClipboardCheckIcon,
   LayoutDashboardIcon,
   SettingsIcon,
-  ShieldIcon,
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type * as React from "react";
 
 import {
@@ -17,7 +16,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -25,7 +23,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-import { NavDocuments } from "./nav-document";
 import { NavSecondary } from "./nav-secondary";
 import { NavUser } from "./nav-user";
 import Image from "next/image";

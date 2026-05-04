@@ -12,6 +12,13 @@ import {
 import { Frame } from "@/components/ui/frame";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,6 +34,12 @@ import {
   setUserActive,
   updateUserRole,
 } from "@/lib/server/users";
+
+const roleOptions = [
+  { label: "Admin", value: "admin" },
+  { label: "Writer", value: "writer" },
+  { label: "User", value: "user" },
+] as const;
 
 function getTextValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -145,15 +158,18 @@ export default async function UsersPage() {
             </Field>
             <Field>
               <FieldLabel>Role</FieldLabel>
-              <select
-                className="h-8.5 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                defaultValue="user"
-                name="role"
-              >
-                <option value="admin">Admin</option>
-                <option value="writer">Writer</option>
-                <option value="user">User</option>
-              </select>
+              <Select defaultValue="user" items={roleOptions} name="role">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             </Field>
             <Button type="submit">Create</Button>
           </FieldGroup>
@@ -227,15 +243,22 @@ export default async function UsersPage() {
                       <div className="flex flex-wrap justify-end gap-2">
                         <form action={updateRoleAction} className="flex gap-2">
                           <input name="userId" type="hidden" value={user.id} />
-                          <select
-                            className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                          <Select
                             defaultValue={user.role}
+                            items={roleOptions}
                             name="role"
                           >
-                            <option value="admin">Admin</option>
-                            <option value="writer">Writer</option>
-                            <option value="user">User</option>
-                          </select>
+                            <SelectTrigger size="sm" className="min-w-28">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectPopup>
+                              {roleOptions.map((role) => (
+                                <SelectItem key={role.value} value={role.value}>
+                                  {role.label}
+                                </SelectItem>
+                              ))}
+                            </SelectPopup>
+                          </Select>
                           <Button size="sm" type="submit" variant="outline">
                             Save
                           </Button>

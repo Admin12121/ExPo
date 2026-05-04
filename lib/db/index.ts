@@ -22,11 +22,33 @@ export function getDatabaseUrl() {
   return configured ?? LOCAL_DATABASE_URL;
 }
 
+function getOptionalPositiveInteger(name: string, fallback: number) {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    return fallback;
+  }
+
+  return value;
+}
+
 export function getPool() {
   if (!globalThis.__athenaPool) {
     globalThis.__athenaPool = new Pool({
       connectionString: getDatabaseUrl(),
-      max: 10,
+      max: getOptionalPositiveInteger("DB_POOL_MAX", 8),
+      idleTimeoutMillis: getOptionalPositiveInteger(
+        "DB_POOL_IDLE_TIMEOUT_MS",
+        30_000,
+      ),
+      connectionTimeoutMillis: getOptionalPositiveInteger(
+        "DB_POOL_CONNECTION_TIMEOUT_MS",
+        5_000,
+      ),
     });
   }
 

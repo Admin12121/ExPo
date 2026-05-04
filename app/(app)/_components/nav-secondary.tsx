@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { HelpCircleIcon, SettingsIcon } from "lucide-react";
+import { HelpCircleIcon } from "lucide-react";
 import Link from "next/link";
 
 import {

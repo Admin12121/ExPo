@@ -16,6 +16,46 @@ export const userRoles = ["admin", "writer", "user"] as const;
 
 export type UserRole = (typeof userRoles)[number];
 
+export const assessmentStatuses = [
+  "open",
+  "in_progress",
+  "close_requested",
+  "closed",
+  "completed_pending_payment",
+  "payment_submitted",
+  "payment_verified",
+  "downloaded",
+  "archived",
+  "cancelled",
+] as const;
+
+export type AssessmentStatus = (typeof assessmentStatuses)[number];
+
+export const assessmentFileKinds = [
+  "source",
+  "completed",
+  "payment_proof",
+] as const;
+
+export type AssessmentFileKind = (typeof assessmentFileKinds)[number];
+
+export const assessmentFileScanStatuses = [
+  "clean",
+  "rejected",
+  "deleted",
+] as const;
+
+export type AssessmentFileScanStatus =
+  (typeof assessmentFileScanStatuses)[number];
+
+export const assessmentReportStatuses = ["open", "resolved"] as const;
+
+export type AssessmentReportStatus = (typeof assessmentReportStatuses)[number];
+
+export const notificationStatuses = ["unread", "read"] as const;
+
+export type NotificationStatus = (typeof notificationStatuses)[number];
+
 export const users = pgTable(
   "users",
   {
@@ -184,6 +224,276 @@ export const passkeys = pgTable(
       .defaultNow(),
   },
   (table) => [index("passkeys_user_idx").on(table.userId)],
+);
+
+export const assessments = pgTable(
+  "assessments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    writerId: uuid("writer_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    topic: text("topic").notNull(),
+    priceCents: integer("price_cents").notNull(),
+    currency: text("currency").notNull().default("USD"),
+    status: text("status").notNull().default("open"),
+    deadlineAt: timestamp("deadline_at", { withTimezone: true }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    paymentSubmittedAt: timestamp("payment_submitted_at", {
+      withTimezone: true,
+    }),
+    paymentVerifiedAt: timestamp("payment_verified_at", {
+      withTimezone: true,
+    }),
+    firstDownloadedAt: timestamp("first_downloaded_at", {
+      withTimezone: true,
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closeReason: text("close_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("assessments_user_idx").on(table.userId),
+    index("assessments_writer_idx").on(table.writerId),
+    index("assessments_status_idx").on(table.status),
+    index("assessments_deadline_idx").on(table.deadlineAt),
+    index("assessments_created_idx").on(table.createdAt),
+    index("assessments_completed_idx").on(table.completedAt),
+    index("assessments_downloaded_idx").on(table.firstDownloadedAt),
+    index("assessments_payment_state_idx").on(
+      table.status,
+      table.paymentSubmittedAt,
+      table.paymentVerifiedAt,
+    ),
+    check(
+      "assessments_status_check",
+      sql`${table.status} in ('open', 'in_progress', 'close_requested', 'closed', 'completed_pending_payment', 'payment_submitted', 'payment_verified', 'downloaded', 'archived', 'cancelled')`,
+    ),
+    check("assessments_price_check", sql`${table.priceCents} >= 0`),
+  ],
+);
+
+export const assessmentFiles = pgTable(
+  "assessment_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => assessments.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    uploaderId: uuid("uploader_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    kind: text("kind").notNull(),
+    originalName: text("original_name").notNull(),
+    storageKey: text("storage_key").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    scanStatus: text("scan_status").notNull().default("clean"),
+    scanMessage: text("scan_message"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("assessment_files_storage_key_unique").on(table.storageKey),
+    index("assessment_files_assessment_idx").on(table.assessmentId),
+    index("assessment_files_kind_idx").on(table.kind),
+    index("assessment_files_scan_idx").on(table.scanStatus),
+    check(
+      "assessment_files_kind_check",
+      sql`${table.kind} in ('source', 'completed', 'payment_proof')`,
+    ),
+    check(
+      "assessment_files_scan_status_check",
+      sql`${table.scanStatus} in ('clean', 'rejected', 'deleted')`,
+    ),
+    check("assessment_files_size_check", sql`${table.sizeBytes} >= 0`),
+  ],
+);
+
+export const assessmentMessages = pgTable(
+  "assessment_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => assessments.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    roomId: text("room_id").notNull(),
+    senderId: uuid("sender_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    senderRole: text("sender_role").notNull(),
+    displayName: text("display_name").notNull(),
+    text: text("text").notNull(),
+    replyToMessageId: uuid("reply_to_message_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("assessment_messages_assessment_idx").on(table.assessmentId),
+    index("assessment_messages_room_idx").on(table.roomId),
+    index("assessment_messages_created_idx").on(table.createdAt),
+    check(
+      "assessment_messages_sender_role_check",
+      sql`${table.senderRole} in ('admin', 'writer', 'user')`,
+    ),
+  ],
+);
+
+export const assessmentCloseRequests = pgTable(
+  "assessment_close_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => assessments.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    requestedById: uuid("requested_by_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    requestedByRole: text("requested_by_role").notNull(),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("pending"),
+    respondedById: uuid("responded_by_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    respondedAt: timestamp("responded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("assessment_close_requests_assessment_idx").on(table.assessmentId),
+    index("assessment_close_requests_status_idx").on(table.status),
+    check(
+      "assessment_close_requests_status_check",
+      sql`${table.status} in ('pending', 'accepted', 'rejected')`,
+    ),
+    check(
+      "assessment_close_requests_role_check",
+      sql`${table.requestedByRole} in ('admin', 'writer', 'user')`,
+    ),
+  ],
+);
+
+export const assessmentReports = pgTable(
+  "assessment_reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => assessments.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    reporterId: uuid("reporter_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    targetUserId: uuid("target_user_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("open"),
+    resolvedById: uuid("resolved_by_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("assessment_reports_assessment_idx").on(table.assessmentId),
+    index("assessment_reports_status_idx").on(table.status),
+    check(
+      "assessment_reports_status_check",
+      sql`${table.status} in ('open', 'resolved')`,
+    ),
+  ],
+);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+    role: text("role"),
+    assessmentId: uuid("assessment_id").references(() => assessments.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    status: text("status").notNull().default("unread"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("notifications_user_idx").on(table.userId),
+    index("notifications_role_idx").on(table.role),
+    index("notifications_status_idx").on(table.status),
+    index("notifications_created_idx").on(table.createdAt),
+    check(
+      "notifications_status_check",
+      sql`${table.status} in ('unread', 'read')`,
+    ),
+  ],
+);
+
+export const maintenanceRuns = pgTable(
+  "maintenance_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    jobName: text("job_name").notNull(),
+    status: text("status").notNull(),
+    details: text("details"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("maintenance_runs_job_idx").on(table.jobName),
+    index("maintenance_runs_started_idx").on(table.startedAt),
+  ],
 );
 
 export const authSchema = {

@@ -2,7 +2,11 @@ import {
   CalendarClockIcon,
   CircleDollarSignIcon,
   ClipboardCheckIcon,
+  EllipsisIcon,
+  EyeIcon,
+  HandIcon,
   MessageSquareIcon,
+  XIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -17,6 +21,13 @@ import {
   CardFrameFooter,
 } from "@/components/ui/card";
 import { Frame, FramePanel } from "@/components/ui/frame";
+import {
+  Menu,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -32,10 +43,7 @@ import {
   type AssessmentSummary,
 } from "@/lib/server/assessments";
 
-import {
-  cancelAssessmentAction,
-  claimAssessmentAction,
-} from "./actions";
+import { cancelAssessmentAction, claimAssessmentAction } from "./actions";
 import NewAssessmentDialog from "./_components/new-assessment-dialog";
 
 function formatMoney(cents: number, currency: string) {
@@ -85,30 +93,45 @@ function AssessmentActions({
     (role === "admin" || item.userId === userId) && item.status === "open";
 
   return (
-    <div className="flex flex-wrap justify-end gap-2">
-      {canClaim ? (
-        <form action={claimAssessmentAction}>
-          <input name="assessmentId" type="hidden" value={item.id} />
-          <Button size="sm" type="submit">
-            Claim
-          </Button>
-        </form>
-      ) : null}
-      {canCancel ? (
-        <form action={cancelAssessmentAction}>
-          <input name="assessmentId" type="hidden" value={item.id} />
-          <Button size="sm" type="submit" variant="destructive-outline">
-            Cancel
-          </Button>
-        </form>
-      ) : null}
-      <Button
-        render={<Link href={`/assessments/${item.id}`} />}
-        size="sm"
-        variant="outline"
-      >
-        Open
-      </Button>
+    <div className="flex justify-end">
+      <Menu>
+        <MenuTrigger
+          render={
+            <Button
+              aria-label={`Actions for ${item.title}`}
+              size="icon-sm"
+              variant="ghost"
+            >
+              <EllipsisIcon />
+            </Button>
+          }
+        />
+        <MenuPopup align="end">
+          <MenuItem render={<Link href={`/assessments/${item.id}`} />}>
+            <EyeIcon />
+            Open
+          </MenuItem>
+          {canClaim || canCancel ? <MenuSeparator /> : null}
+          {canClaim ? (
+            <form action={claimAssessmentAction}>
+              <input name="assessmentId" type="hidden" value={item.id} />
+              <MenuItem render={<button type="submit" />}>
+                <HandIcon />
+                Claim
+              </MenuItem>
+            </form>
+          ) : null}
+          {canCancel ? (
+            <form action={cancelAssessmentAction}>
+              <input name="assessmentId" type="hidden" value={item.id} />
+              <MenuItem render={<button type="submit" />} variant="destructive">
+                <XIcon />
+                Cancel
+              </MenuItem>
+            </form>
+          ) : null}
+        </MenuPopup>
+      </Menu>
     </div>
   );
 }
@@ -175,11 +198,74 @@ function AssessmentCard({
   );
 }
 
+function AssessmentTable({
+  items,
+  role,
+  userId,
+}: {
+  items: AssessmentSummary[];
+  role: string;
+  userId: string;
+}) {
+  return (
+    <Frame>
+      <Table variant="card">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Country</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Deadline</TableHead>
+            <TableHead>Price</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>
+                <Link href={`/assessments/${item.id}`} className="min-w-0">
+                  <div className="truncate font-medium">{item.title}</div>
+                  <div className="truncate text-muted-foreground text-xs">
+                    {item.topic}
+                  </div>
+                </Link>
+              </TableCell>
+              <TableCell>
+                <Badge variant={statusVariant(item.status)}>
+                  {statusLabel(item.status)}
+                </Badge>
+              </TableCell>
+              <TableCell>{formatDate(item.deadlineAt)}</TableCell>
+              <TableCell>
+                {formatMoney(item.priceCents, item.currency)}
+              </TableCell>
+              <TableCell>
+                <AssessmentActions item={item} role={role} userId={userId} />
+              </TableCell>
+            </TableRow>
+          ))}
+          {items.length === 0 ? (
+            <TableRow>
+              <TableCell
+                className="py-8 text-center text-muted-foreground text-sm"
+                colSpan={5}
+              >
+                No assessments yet.
+              </TableCell>
+            </TableRow>
+          ) : null}
+        </TableBody>
+      </Table>
+    </Frame>
+  );
+}
+
 export default async function AssessmentsPage() {
   const session = await requireSession("/assessments");
   const workspace = await getAssessmentWorkspace(session.user);
   const role = workspace.role;
   const userId = session.user.id;
+  const isUser = role === "user";
   const upcoming = workspace.items
     .filter((item) => item.deadlineAt && item.status !== "cancelled")
     .slice(0, 6);
@@ -194,19 +280,21 @@ export default async function AssessmentsPage() {
         <Badge variant="outline">{role}</Badge>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        {[
-          ["Total", workspace.stats.total],
-          ["Open", workspace.stats.open],
-          ["Active", workspace.stats.active],
-          ["Payment", workspace.stats.payment],
-        ].map(([label, value]) => (
-          <FramePanel key={label} className="p-4">
-            <div className="text-muted-foreground text-sm">{label}</div>
-            <div className="mt-2 text-2xl font-semibold">{value}</div>
-          </FramePanel>
-        ))}
-      </div>
+      {!isUser ? (
+        <div className="grid gap-3 md:grid-cols-4">
+          {[
+            ["Total", workspace.stats.total],
+            ["Open", workspace.stats.open],
+            ["Active", workspace.stats.active],
+            ["Payment", workspace.stats.payment],
+          ].map(([label, value]) => (
+            <FramePanel key={label} className="p-4">
+              <div className="text-muted-foreground text-sm">{label}</div>
+              <div className="mt-2 text-2xl font-semibold">{value}</div>
+            </FramePanel>
+          ))}
+        </div>
+      ) : null}
 
       {role === "writer" || role === "admin" ? (
         <FramePanel className="grid gap-3">
@@ -237,86 +325,61 @@ export default async function AssessmentsPage() {
         </FramePanel>
       ) : null}
 
-      <Tabs defaultValue="cards">
-        <div className="flex items-center justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="cards">
-              <ClipboardCheckIcon />
-              Cards
-            </TabsTrigger>
-            <TabsTrigger value="table">
-              <MessageSquareIcon />
-              Table
-            </TabsTrigger>
-          </TabsList>
+      {isUser ? (
+        <div className="grid gap-3">
           <div className="text-muted-foreground text-sm">
             Showing latest {workspace.items.length}
           </div>
+          <AssessmentTable
+            items={workspace.items}
+            role={role}
+            userId={userId}
+          />
         </div>
-        <TabsContent
-          className="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
-          value="cards"
-        >
-          {workspace.items.map((item) => (
-            <AssessmentCard
-              item={item}
-              key={item.id}
+      ) : (
+        <Tabs defaultValue="cards">
+          <div className="flex items-center justify-between gap-3">
+            <TabsList>
+              <TabsTrigger value="cards">
+                <ClipboardCheckIcon />
+                Cards
+              </TabsTrigger>
+              <TabsTrigger value="table">
+                <MessageSquareIcon />
+                Table
+              </TabsTrigger>
+            </TabsList>
+            <div className="text-muted-foreground text-sm">
+              Showing latest {workspace.items.length}
+            </div>
+          </div>
+          <TabsContent
+            className="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+            value="cards"
+          >
+            {workspace.items.map((item) => (
+              <AssessmentCard
+                item={item}
+                key={item.id}
+                role={role}
+                userId={userId}
+              />
+            ))}
+            {workspace.items.length === 0 ? (
+              <FramePanel className="p-8 text-center text-muted-foreground text-sm md:col-span-2 xl:col-span-3">
+                No assessments yet.
+              </FramePanel>
+            ) : null}
+          </TabsContent>
+          <TabsContent value="table">
+            <AssessmentTable
+              items={workspace.items}
               role={role}
               userId={userId}
             />
-          ))}
-          {workspace.items.length === 0 ? (
-            <FramePanel className="p-8 text-center text-muted-foreground text-sm md:col-span-2 xl:col-span-3">
-              No assessments yet.
-            </FramePanel>
-          ) : null}
-        </TabsContent>
-        <TabsContent value="table">
-          <Frame>
-            <Table variant="card">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Assessment</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workspace.items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{item.title}</div>
-                        <div className="truncate text-muted-foreground text-xs">
-                          {item.topic}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(item.status)}>
-                        {statusLabel(item.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(item.deadlineAt)}</TableCell>
-                    <TableCell>
-                      {formatMoney(item.priceCents, item.currency)}
-                    </TableCell>
-                    <TableCell>
-                      <AssessmentActions
-                        item={item}
-                        role={role}
-                        userId={userId}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Frame>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      )}
     </main>
   );
 }

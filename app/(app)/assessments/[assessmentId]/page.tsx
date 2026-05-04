@@ -2,7 +2,6 @@ import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   DownloadIcon,
-  FileCheckIcon,
   HandshakeIcon,
   LockIcon,
   UploadIcon,
@@ -35,6 +34,7 @@ import {
   submitPaymentProofAction,
   verifyPaymentAction,
 } from "../actions";
+import { CompletedWorkUploadForm } from "./_components/completed-work-upload-form";
 
 type PageProps = {
   params: Promise<{
@@ -149,6 +149,13 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
             </FramePanel>
           </Frame>
 
+          {canComplete ? (
+            <CompletedWorkUploadForm
+              action={completeAssessmentAction}
+              assessmentId={assessment.id}
+            />
+          ) : null}
+
           <Frame>
             <FrameHeader>
               <FrameTitle>Files</FrameTitle>
@@ -228,26 +235,6 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
         </div>
 
         <div className="grid content-start gap-4">
-          {canComplete ? (
-            <form action={completeAssessmentAction} encType="multipart/form-data">
-              <input name="assessmentId" type="hidden" value={assessment.id} />
-              <FramePanel className="grid gap-3">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <FileCheckIcon className="size-4 text-muted-foreground" />
-                  Complete work
-                </div>
-                <Field>
-                  <FieldLabel>Completed file</FieldLabel>
-                  <Input accept=".pdf,.docx,.txt" name="file" nativeInput required type="file" />
-                </Field>
-                <Button type="submit">
-                  <UploadIcon />
-                  Upload completed file
-                </Button>
-              </FramePanel>
-            </form>
-          ) : null}
-
           {canSubmitPayment ? (
             <form action={submitPaymentProofAction} encType="multipart/form-data">
               <input name="assessmentId" type="hidden" value={assessment.id} />

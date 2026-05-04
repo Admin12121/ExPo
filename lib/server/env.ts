@@ -33,11 +33,11 @@ export const serverEnv = {
   ),
   maxAssessmentUploadBytes: readPositiveInteger(
     "MAX_ASSESSMENT_UPLOAD_BYTES",
-    25 * 1024 * 1024,
+    30 * 1024 * 1024,
   ),
   maxCompletedUploadBytes: readPositiveInteger(
     "MAX_COMPLETED_UPLOAD_BYTES",
-    50 * 1024 * 1024,
+    30 * 1024 * 1024,
   ),
   maxPaymentProofUploadBytes: readPositiveInteger(
     "MAX_PAYMENT_PROOF_UPLOAD_BYTES",

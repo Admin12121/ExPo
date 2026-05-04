@@ -48,6 +48,8 @@ const mutableStatuses = [
   "payment_verified",
 ] satisfies AssessmentStatus[];
 
+const maxAssessmentFiles = 3;
+
 function asRole(value: string | null | undefined): UserRole {
   if (value === "admin" || value === "writer" || value === "user") {
     return value;
@@ -92,6 +94,22 @@ function isFile(value: FormDataEntryValue | null): value is File {
     "arrayBuffer" in value &&
     "name" in value
   );
+}
+
+function getUploadFiles(formData: FormData) {
+  return formData
+    .getAll("file")
+    .filter((value): value is File => isFile(value));
+}
+
+function assertFileCount(files: File[], label: string) {
+  if (files.length === 0) {
+    throw new Error(`${label} file is required.`);
+  }
+
+  if (files.length > maxAssessmentFiles) {
+    throw new Error(`Upload up to ${maxAssessmentFiles} files.`);
+  }
 }
 
 function assertRole(user: AppSessionUser, roles: UserRole[]) {
@@ -379,11 +397,13 @@ export async function createAssessmentFromForm(
   const currency = getText(formData, "currency", 8).toUpperCase() || "USD";
   const priceCents = getPriceCents(getText(formData, "price", 32));
   const deadlineAt = getDateValue(getText(formData, "deadlineAt", 64));
-  const file = formData.get("file");
+  const files = getUploadFiles(formData);
 
-  if (!title || !description || !topic || !isFile(file)) {
-    throw new Error("Title, description, topic, and source file are required.");
+  if (!title || !description || !topic) {
+    throw new Error("Country, description, topic, and source file are required.");
   }
+
+  assertFileCount(files, "Source");
 
   const [assessment] = await db
     .insert(assessments)
@@ -399,14 +419,22 @@ export async function createAssessmentFromForm(
     })
     .returning();
 
+  const insertedFiles: Awaited<ReturnType<typeof insertAssessmentFile>>[] = [];
   try {
-    await insertAssessmentFile({
-      assessmentId: assessment.id,
-      file,
-      kind: "source",
-      uploaderId: user.id,
-    });
+    for (const file of files) {
+      insertedFiles.push(
+        await insertAssessmentFile({
+          assessmentId: assessment.id,
+          file,
+          kind: "source",
+          uploaderId: user.id,
+        }),
+      );
+    }
   } catch (error) {
+    await Promise.all(
+      insertedFiles.map((file) => removePrivateAssessmentFile(file.storageKey)),
+    );
     await db.delete(assessments).where(eq(assessments.id, assessment.id));
     throw error;
   }
@@ -599,7 +627,7 @@ export async function completeAssessmentFromForm(
 ) {
   assertRole(user, ["admin", "writer"]);
   const row = await getAssessmentRow(assessmentId);
-  const file = formData.get("file");
+  const files = getUploadFiles(formData);
 
   if (!row || (row.writerId !== user.id && asRole(user.role) !== "admin")) {
     throw new Error("Only the assigned writer can complete this assessment.");
@@ -609,16 +637,26 @@ export async function completeAssessmentFromForm(
     throw new Error("This assessment cannot be completed from its current state.");
   }
 
-  if (!isFile(file)) {
-    throw new Error("Completed file is required.");
-  }
+  assertFileCount(files, "Completed");
 
-  await insertAssessmentFile({
-    assessmentId,
-    file,
-    kind: "completed",
-    uploaderId: user.id,
-  });
+  const insertedFiles: Awaited<ReturnType<typeof insertAssessmentFile>>[] = [];
+  try {
+    for (const file of files) {
+      insertedFiles.push(
+        await insertAssessmentFile({
+          assessmentId,
+          file,
+          kind: "completed",
+          uploaderId: user.id,
+        }),
+      );
+    }
+  } catch (error) {
+    await Promise.all(
+      insertedFiles.map((file) => removePrivateAssessmentFile(file.storageKey)),
+    );
+    throw error;
+  }
 
   await db
     .update(assessments)

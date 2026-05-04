@@ -55,6 +55,12 @@ const imageDangerPatterns = [
   /javascript:/i,
 ];
 
+const zipDangerPatterns = [
+  /(^|[\\/])\.\.([\\/]|$)/,
+  /[A-Za-z]:[\\/]/,
+  /\0/,
+];
+
 function getFileName(file: File) {
   return file.name || "upload";
 }
@@ -76,7 +82,7 @@ function sanitizeBaseName(fileName: string) {
 
 function getAllowedExtensions(purpose: UploadPurpose) {
   if (purpose === "source" || purpose === "completed") {
-    return ["pdf", "docx", "txt"];
+    return ["pdf", "docx", "txt", "zip"];
   }
 
   return ["pdf", "png", "jpg", "jpeg", "webp"];
@@ -97,6 +103,10 @@ function getMaxUploadBytes(purpose: UploadPurpose) {
 function detectMimeType(buffer: Buffer, extension: string) {
   if (buffer.subarray(0, 5).toString("ascii") === "%PDF-") {
     return "application/pdf";
+  }
+
+  if (buffer[0] === 0x50 && buffer[1] === 0x4b && extension === "zip") {
+    return "application/zip";
   }
 
   if (buffer[0] === 0x50 && buffer[1] === 0x4b) {
@@ -188,6 +198,17 @@ function assertImageIsSafe(buffer: Buffer, extension: string, mimeType: string) 
   }
 }
 
+function assertZipIsSafe(buffer: Buffer, mimeType: string) {
+  if (mimeType !== "application/zip") {
+    throw new Error("ZIP file content is invalid.");
+  }
+
+  const body = buffer.toString("latin1");
+  if (zipDangerPatterns.some((pattern) => pattern.test(body))) {
+    throw new Error("ZIP rejected because it contains unsafe paths.");
+  }
+}
+
 export async function validateAssessmentUpload(
   file: File,
   purpose: UploadPurpose,
@@ -233,6 +254,8 @@ export async function validateAssessmentUpload(
     assertDocxIsSafe(buffer);
   } else if (extension === "txt") {
     assertTxtIsSafe(buffer, mimeType);
+  } else if (extension === "zip") {
+    assertZipIsSafe(buffer, mimeType);
   } else {
     assertImageIsSafe(buffer, extension, mimeType);
   }

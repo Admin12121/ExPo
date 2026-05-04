@@ -22,7 +22,7 @@ import {
 } from "@/lib/server/email-templates";
 import { sendAuthEmail } from "@/lib/server/email";
 
-const APP_NAME = "Athena";
+const APP_NAME = "ExPO";
 
 const userManagementAccess = createAccessControl({
   user: [
@@ -167,9 +167,9 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       await sendAuthEmail({
         to: user.email,
-        subject: "Reset your Athena password",
+        subject: "Reset your ExPO password",
         react: resetPasswordEmail(url, APP_NAME),
-        text: `Reset your Athena password: ${url}`,
+        text: `Reset your ExPO password: ${url}`,
       });
     },
   },
@@ -180,9 +180,9 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendAuthEmail({
         to: user.email,
-        subject: "Verify your Athena email",
+        subject: "Verify your ExPO email",
         react: verifyEmailEmail(url, APP_NAME),
-        text: `Verify your Athena email address: ${url}`,
+        text: `Verify your ExPO email address: ${url}`,
       });
     },
   },
@@ -209,10 +209,10 @@ export const auth = betterAuth({
           to: email,
           subject:
             type === "sign-in"
-              ? "Your Athena sign-in code"
-              : "Your Athena verification code",
+              ? "Your ExPO sign-in code"
+              : "Your ExPO verification code",
           react: signInOtpEmail(otp, APP_NAME, 5),
-          text: `Your Athena code is ${otp}. It expires in 5 minutes.`,
+          text: `Your ExPO code is ${otp}. It expires in 5 minutes.`,
         });
       },
     }),
@@ -226,9 +226,9 @@ export const auth = betterAuth({
         async sendOTP({ user, otp }) {
           await sendAuthEmail({
             to: user.email,
-            subject: "Your Athena two-factor code",
+            subject: "Your ExPO two-factor code",
             react: twoFactorOtpEmail(otp, APP_NAME),
-            text: `Your Athena two-factor code is ${otp}.`,
+            text: `Your ExPO two-factor code is ${otp}.`,
           });
         },
       },

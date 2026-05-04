@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { RiGoogleFill } from "@remixicon/react";
 
+import { AuthBrand } from "../../_components/auth-brand";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,8 +34,7 @@ export function LoginForm({
   disabledMessage?: string | undefined;
 }) {
   const router = useRouter();
-  // default to signup so the login page creates users by default
-  const [mode, setMode] = useState<AuthMode>("signup");
+  const [mode, setMode] = useState<AuthMode>("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,11 +67,9 @@ export function LoginForm({
       const errorCode = result.error.code ?? "";
 
       if (errorCode === "EMAIL_NOT_VERIFIED") {
-        try {
-          sessionStorage.setItem("auth:verify:email", email);
-        } catch {}
-
-        router.push("/email-otp/verify");
+        router.push(
+          `/email-otp/verify?email=${encodeURIComponent(email.trim())}`,
+        );
         return;
       }
 
@@ -96,13 +93,19 @@ export function LoginForm({
     // If signup did not create a session (token null), redirect to OTP/verification page
     // Better Auth returns no session when `autoSignIn` is false or verification is required.
     // Support both shapes: result.token or result.data?.token
-    const token = (result as any).token ?? (result as any)?.data?.token ?? null;
+    const token =
+      "token" in result
+        ? result.token
+        : "data" in result &&
+            result.data &&
+            typeof result.data === "object" &&
+            "token" in result.data
+          ? result.data.token
+          : null;
     if (!token) {
-      // store email in sessionStorage (prevents URL tampering) and redirect
-      try {
-        sessionStorage.setItem("auth:verify:email", email);
-      } catch {}
-      router.push(`/email-otp/verify`);
+      router.push(
+        `/email-otp/verify?email=${encodeURIComponent(email.trim())}`,
+      );
       return;
     }
 
@@ -121,24 +124,7 @@ export function LoginForm({
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Frame className="border-none py-5">
-        <div className="mb-5 text-center">
-          <Link
-            href="/"
-            className="flex flex-col items-center gap-2 self-center font-medium text-3xl"
-          >
-            <div className="flex size-14 items-center justify-center rounded-md">
-              <Image
-                src="/logo.webp"
-                priority
-                alt="ExPO"
-                height={500}
-                width={500}
-                className="rounded-md"
-              />
-            </div>
-            ExPo
-          </Link>
-        </div>
+        <AuthBrand />
         <CardContent className="px-4 py-0">
           <Form onSubmit={submitEmailPassword}>
             <FieldGroup>

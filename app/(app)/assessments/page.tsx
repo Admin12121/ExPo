@@ -2,7 +2,6 @@ import {
   CalendarClockIcon,
   CircleDollarSignIcon,
   ClipboardCheckIcon,
-  FilePlusIcon,
   MessageSquareIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -17,9 +16,7 @@ import {
   CardFrame,
   CardFrameFooter,
 } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Frame, FramePanel } from "@/components/ui/frame";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -29,18 +26,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { requireSession } from "@/lib/auth/session";
 import {
   getAssessmentWorkspace,
   type AssessmentSummary,
 } from "@/lib/server/assessments";
 
-import React from "react";
 import {
   cancelAssessmentAction,
   claimAssessmentAction,
-  createAssessmentAction,
 } from "./actions";
 import NewAssessmentDialog from "./_components/new-assessment-dialog";
 

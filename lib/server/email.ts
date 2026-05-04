@@ -22,7 +22,7 @@ export async function sendAuthEmail({
   const from =
     process.env.RESEND_FROM ??
     process.env.AUTH_EMAIL_FROM ??
-    "Athena <auth@athena.local>";
+    "ExPO <auth@expo.local>";
 
   if (!html && !react) {
     throw new Error("sendAuthEmail requires either html or react content.");

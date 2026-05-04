@@ -143,7 +143,7 @@ export function AccountSecurityActions({
       setBackupCodes([]);
       const result = twoFactorEnabled
         ? await authClient.twoFactor.disable({ password })
-        : await authClient.twoFactor.enable({ issuer: "Athena", password });
+        : await authClient.twoFactor.enable({ issuer: "ExPO", password });
 
       if (result.error) {
         throw result.error;

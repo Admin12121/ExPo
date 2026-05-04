@@ -75,7 +75,7 @@ const buttonStyle = {
 };
 
 function AuthEmailTemplate({
-  appName = "Athena",
+  appName = "ExPO",
   heading,
   intro,
   ctaLabel,
@@ -120,7 +120,7 @@ function AuthEmailTemplate({
   );
 }
 
-export function resetPasswordEmail(url: string, appName = "Athena") {
+export function resetPasswordEmail(url: string, appName = "ExPO") {
   return AuthEmailTemplate({
     appName,
     heading: "Reset your password",
@@ -130,7 +130,7 @@ export function resetPasswordEmail(url: string, appName = "Athena") {
   });
 }
 
-export function verifyEmailEmail(url: string, appName = "Athena") {
+export function verifyEmailEmail(url: string, appName = "ExPO") {
   return AuthEmailTemplate({
     appName,
     heading: "Verify your email",
@@ -142,7 +142,7 @@ export function verifyEmailEmail(url: string, appName = "Athena") {
 
 export function signInOtpEmail(
   otp: string,
-  appName = "Athena",
+  appName = "ExPO",
   minutes = 5,
 ) {
   return AuthEmailTemplate({
@@ -154,7 +154,7 @@ export function signInOtpEmail(
   });
 }
 
-export function twoFactorOtpEmail(otp: string, appName = "Athena") {
+export function twoFactorOtpEmail(otp: string, appName = "ExPO") {
   return AuthEmailTemplate({
     appName,
     heading: "Your two-factor code",

@@ -13,7 +13,10 @@ export async function POST(request: Request) {
     const assessmentId = await createAssessmentFromForm(session.user, formData as unknown as FormData);
 
     return NextResponse.json({ assessmentId, redirect: `/assessments/${assessmentId}` });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? String(err) }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
   }
 }

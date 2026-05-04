@@ -1,11 +1,11 @@
 "use client";
 
-import { MailIcon, ShieldCheckIcon, ShieldIcon } from "lucide-react";
-import Link from "next/link";
+import { MailIcon, ShieldCheckIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type * as React from "react";
 import { useState } from "react";
 
+import { AuthBrand } from "../../_components/auth-brand";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import {
@@ -118,17 +118,7 @@ export function TwoFactorForm({ nextPath }: { nextPath: string }) {
 
   return (
     <Frame className="border-none p-5">
-      <div className="mb-5 text-center">
-        <Link
-          href="/"
-          className="inline-flex flex-col items-center gap-2 font-medium text-3xl"
-        >
-          <span className="flex size-12 items-center justify-center rounded-lg border bg-background">
-            <ShieldIcon className="size-6" />
-          </span>
-          Athena
-        </Link>
-      </div>
+      <AuthBrand />
       <CardContent className="px-0 py-0">
         <div className="mb-4 grid grid-cols-2 gap-2">
           <Button

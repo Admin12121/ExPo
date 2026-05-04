@@ -185,11 +185,16 @@ export const otpResendLogs = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     email: text("email").notNull(),
+    ipAddress: text("ip_address").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("otp_resend_logs_email_idx").on(table.email)]
+  (table) => [
+    index("otp_resend_logs_email_idx").on(table.email),
+    index("otp_resend_logs_ip_idx").on(table.ipAddress),
+    index("otp_resend_logs_created_idx").on(table.createdAt),
+  ],
 );
 
 export const twoFactors = pgTable(

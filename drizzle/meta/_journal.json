@@ -15,6 +15,13 @@
       "when": 1777883626145,
       "tag": "0001_stiff_nicolaos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777921336011,
+      "tag": "0002_flaky_rachel_grey",
+      "breakpoints": true
     }
   ]
 }

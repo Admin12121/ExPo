@@ -28,6 +28,8 @@ const pdfDangerPatterns = [
   /\/AA\b/i,
   /\/RichMedia\b/i,
   /\/XFA\b/i,
+  /\/SubmitForm\b/i,
+  /\/ImportData\b/i,
 ];
 
 const docxDangerPatterns = [
@@ -42,6 +44,15 @@ const docxDangerPatterns = [
   /\.js/i,
   /\.vbs/i,
   /\.ps1/i,
+  /\.\.\//i,
+  /\/\.\./i,
+];
+
+const imageDangerPatterns = [
+  /<script\b/i,
+  /<svg\b/i,
+  /<html\b/i,
+  /javascript:/i,
 ];
 
 function getFileName(file: File) {
@@ -141,12 +152,20 @@ function assertDocxIsSafe(buffer: Buffer) {
   }
 }
 
-function assertTxtIsSafe(buffer: Buffer) {
+function assertTxtIsSafe(buffer: Buffer, mimeType: string) {
+  if (mimeType !== "text/plain") {
+    throw new Error("TXT file content is invalid.");
+  }
+
   if (buffer.includes(0)) {
     throw new Error("TXT rejected because it contains binary content.");
   }
 
-  buffer.toString("utf8");
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  const text = decoder.decode(buffer);
+  if (/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(text)) {
+    throw new Error("TXT rejected because it contains control characters.");
+  }
 }
 
 function assertImageIsSafe(buffer: Buffer, extension: string, mimeType: string) {
@@ -161,9 +180,11 @@ function assertImageIsSafe(buffer: Buffer, extension: string, mimeType: string) 
     throw new Error("Payment proof image type does not match the file content.");
   }
 
-  const text = buffer.subarray(0, Math.min(buffer.length, 4096)).toString("utf8");
-  if (/<script\b/i.test(text)) {
-    throw new Error("Payment proof image rejected because it contains script text.");
+  const text = buffer
+    .subarray(0, Math.min(buffer.length, 64 * 1024))
+    .toString("latin1");
+  if (imageDangerPatterns.some((pattern) => pattern.test(text))) {
+    throw new Error("Payment proof image rejected because it contains active content.");
   }
 }
 
@@ -211,7 +232,7 @@ export async function validateAssessmentUpload(
     }
     assertDocxIsSafe(buffer);
   } else if (extension === "txt") {
-    assertTxtIsSafe(buffer);
+    assertTxtIsSafe(buffer, mimeType);
   } else {
     assertImageIsSafe(buffer, extension, mimeType);
   }
@@ -245,10 +266,13 @@ export async function writePrivateAssessmentFile(
 
 function getStorageRoot() {
   if (path.isAbsolute(serverEnv.storageDir)) {
-    return serverEnv.storageDir;
+    return path.resolve(serverEnv.storageDir);
   }
 
-  return path.join(/* turbopackIgnore: true */ process.cwd(), serverEnv.storageDir);
+  return path.resolve(
+    /* turbopackIgnore: true */ process.cwd(),
+    serverEnv.storageDir,
+  );
 }
 
 export function resolveStorageKey(storageKey: string) {

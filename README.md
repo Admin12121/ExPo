@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Athena
 
-## Getting Started
+Next.js owns the full auth stack in this app: Drizzle migrations, the Postgres schema, Better Auth sessions, and user management all live in the web project.
 
-First, run the development server:
+## Local Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```powershell
+bun install
+Copy-Item .env.example .env
+docker compose up -d db
+bun run db:migrate
+bun run seed:admin
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000/login`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Seeded admin:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```text
+email: admin@gmail.com
+password: admin@#12
+```
 
-## Learn More
+## Auth Features
 
-To learn more about Next.js, take a look at the following resources:
+- Email/password sign in and sign up
+- Email OTP sign in
+- Passkey sign in and passkey enrollment from settings
+- TOTP setup and email OTP second-factor flow
+- Multiple device sessions with session revoke controls
+- Password change and password reset
+- Three simple roles: `admin`, `writer`, `user`
+- Admin-only user management at `/users`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Development auth emails are logged to the Next.js server console unless `RESEND_API_KEY` is configured.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Commands
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```powershell
+bun run typecheck
+bun run lint
+bun run build
+bun run db:generate
+bun run db:migrate
+bun run seed:admin
+```

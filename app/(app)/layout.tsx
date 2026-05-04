@@ -1,8 +1,7 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireSession } from "@/lib/auth/session";
 
-import { AppSidebar } from "./_components/app-sidebar";
-import { SiteHeader } from "./_components/site-header";
+import { AppSidebar, SiteHeader } from "./_components";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export default async function AppLayout({
@@ -23,8 +22,8 @@ export default async function AppLayout({
         className="flex h-dvh min-h-0 overflow-hidden"
         style={
           {
-            "--sidebar-width": "16rem",
-            "--header-height": "3rem",
+            "--sidebar-width": "calc(var(--spacing) * 64)",
+            "--header-height": "calc(var(--spacing) * 12 + 1px)",
           } as React.CSSProperties
         }
       >

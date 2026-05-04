@@ -1,8 +1,4 @@
-import {
-  KeyRoundIcon,
-  MonitorSmartphoneIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { KeyRoundIcon, MonitorSmartphoneIcon, Trash2Icon } from "lucide-react";
 import { revalidatePath } from "next/cache";
 
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +28,7 @@ import {
   updateAccountProfile,
 } from "@/lib/server/account";
 
-import { AccountSecurityActions } from "./_components/account-security-actions";
+import { AccountSecurityActions } from "./_components";
 
 function getTextValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -258,7 +254,9 @@ export default async function AccountSettingsPage() {
               </div>
               <div className="grid gap-1">
                 <span className="text-muted-foreground">Created</span>
-                <span className="font-medium">{formatDate(user.createdAt)}</span>
+                <span className="font-medium">
+                  {formatDate(user.createdAt)}
+                </span>
               </div>
             </div>
           </Frame>
@@ -267,7 +265,9 @@ export default async function AccountSettingsPage() {
             <Table variant="card">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Linked accounts - {linkedAccounts.length}</TableHead>
+                  <TableHead>
+                    Linked accounts - {linkedAccounts.length}
+                  </TableHead>
                   <TableHead>Added</TableHead>
                 </TableRow>
               </TableHeader>
@@ -345,7 +345,9 @@ export default async function AccountSettingsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {isCurrent ? <Badge variant="success">Current</Badge> : null}
+                      {isCurrent ? (
+                        <Badge variant="success">Current</Badge>
+                      ) : null}
                       <Badge variant={isExpired ? "secondary" : "outline"}>
                         {isExpired ? "Expired" : "Active"}
                       </Badge>
@@ -429,7 +431,11 @@ export default async function AccountSettingsPage() {
                       action={deletePasskeyAction}
                       className="flex justify-end"
                     >
-                      <input name="passkeyId" type="hidden" value={passkey.id} />
+                      <input
+                        name="passkeyId"
+                        type="hidden"
+                        value={passkey.id}
+                      />
                       <Button
                         aria-label={`Delete ${passkey.name ?? "passkey"}`}
                         size="icon-sm"

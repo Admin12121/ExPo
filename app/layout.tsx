@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Athena",
-  description: "Athena authentication and assessment workspace",
+  title: "ExPO",
+  description: "ExPO is an open-source platform for managing and sharing security assessments.",
 };
 
 export default function RootLayout({

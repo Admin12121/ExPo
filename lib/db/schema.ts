@@ -180,6 +180,18 @@ export const verifications = pgTable(
   ],
 );
 
+export const otpResendLogs = pgTable(
+  "otp_resend_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("otp_resend_logs_email_idx").on(table.email)]
+);
+
 export const twoFactors = pgTable(
   "two_factors",
   {

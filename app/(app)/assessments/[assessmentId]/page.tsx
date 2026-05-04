@@ -26,7 +26,7 @@ import { requireSession } from "@/lib/auth/session";
 import { getAssessmentMessages } from "@/lib/server/assessment-chat";
 import { getAssessmentDetail } from "@/lib/server/assessments";
 
-import { AssessmentChatPanel } from "../_components";
+import { AssessmentChatPanel } from "./_components/assessment-chat-panel";
 import {
   completeAssessmentAction,
   reportAssessmentAction,

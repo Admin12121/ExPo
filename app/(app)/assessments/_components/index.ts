@@ -1,1 +1,1 @@
-export * from "./assessment-chat-panel";
+export * from "../[assessmentId]/_components/assessment-chat-panel";

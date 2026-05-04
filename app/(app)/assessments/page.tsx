@@ -36,11 +36,13 @@ import {
   type AssessmentSummary,
 } from "@/lib/server/assessments";
 
+import React from "react";
 import {
   cancelAssessmentAction,
   claimAssessmentAction,
   createAssessmentAction,
 } from "./actions";
+import NewAssessmentDialog from "./_components/new-assessment-dialog";
 
 function formatMoney(cents: number, currency: string) {
   return new Intl.NumberFormat("en", {
@@ -83,7 +85,8 @@ function AssessmentActions({
   role: string;
   userId: string;
 }) {
-  const canClaim = (role === "writer" || role === "admin") && item.status === "open";
+  const canClaim =
+    (role === "writer" || role === "admin") && item.status === "open";
   const canCancel =
     (role === "admin" || item.userId === userId) && item.status === "open";
 
@@ -105,7 +108,11 @@ function AssessmentActions({
           </Button>
         </form>
       ) : null}
-      <Button render={<Link href={`/assessments/${item.id}`} />} size="sm" variant="outline">
+      <Button
+        render={<Link href={`/assessments/${item.id}`} />}
+        size="sm"
+        variant="outline"
+      >
         Open
       </Button>
     </div>
@@ -128,12 +135,16 @@ function AssessmentCard({
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <CardTitle className="truncate text-base">{item.title}</CardTitle>
+                <CardTitle className="truncate text-base">
+                  {item.title}
+                </CardTitle>
                 <div className="mt-1 truncate text-muted-foreground text-sm">
                   {item.topic}
                 </div>
               </div>
-              <Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>
+              <Badge variant={statusVariant(item.status)}>
+                {statusLabel(item.status)}
+              </Badge>
             </div>
           </CardHeader>
 
@@ -182,8 +193,9 @@ export default async function AssessmentsPage() {
   return (
     <main className="grid gap-4 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex items-center justify-between w-full">
           <h1 className="truncate text-lg font-semibold">Assessments</h1>
+          {role === "user" ? <NewAssessmentDialog /> : null}
         </div>
         <Badge variant="outline">{role}</Badge>
       </div>
@@ -201,48 +213,6 @@ export default async function AssessmentsPage() {
           </FramePanel>
         ))}
       </div>
-
-      {role === "user" ? (
-        <form action={createAssessmentAction} encType="multipart/form-data">
-          <Frame className="grid gap-1">
-            <FramePanel className="grid gap-4">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <FilePlusIcon className="size-4 text-muted-foreground" />
-                New assessment
-              </div>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Title</FieldLabel>
-                  <Input name="title" required />
-                </Field>
-                <Field>
-                  <FieldLabel>Topic</FieldLabel>
-                  <Input name="topic" required />
-                </Field>
-                <Field>
-                  <FieldLabel>Price</FieldLabel>
-                  <Input min="0" name="price" nativeInput required step="0.01" type="number" />
-                </Field>
-                <Field>
-                  <FieldLabel>Deadline</FieldLabel>
-                  <Input name="deadlineAt" nativeInput type="date" />
-                </Field>
-              </FieldGroup>
-              <Field>
-                <FieldLabel>Description</FieldLabel>
-                <Textarea name="description" required />
-              </Field>
-              <Field>
-                <FieldLabel>Source file</FieldLabel>
-                <Input accept=".pdf,.docx,.txt" name="file" nativeInput required type="file" />
-              </Field>
-              <div className="flex justify-end">
-                <Button type="submit">Upload assessment</Button>
-              </div>
-            </FramePanel>
-          </Frame>
-        </form>
-      ) : null}
 
       {role === "writer" || role === "admin" ? (
         <FramePanel className="grid gap-3">
@@ -289,9 +259,17 @@ export default async function AssessmentsPage() {
             Showing latest {workspace.items.length}
           </div>
         </div>
-        <TabsContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" value="cards">
+        <TabsContent
+          className="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+          value="cards"
+        >
           {workspace.items.map((item) => (
-            <AssessmentCard item={item} key={item.id} role={role} userId={userId} />
+            <AssessmentCard
+              item={item}
+              key={item.id}
+              role={role}
+              userId={userId}
+            />
           ))}
           {workspace.items.length === 0 ? (
             <FramePanel className="p-8 text-center text-muted-foreground text-sm md:col-span-2 xl:col-span-3">
@@ -328,9 +306,15 @@ export default async function AssessmentsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{formatDate(item.deadlineAt)}</TableCell>
-                    <TableCell>{formatMoney(item.priceCents, item.currency)}</TableCell>
                     <TableCell>
-                      <AssessmentActions item={item} role={role} userId={userId} />
+                      {formatMoney(item.priceCents, item.currency)}
+                    </TableCell>
+                    <TableCell>
+                      <AssessmentActions
+                        item={item}
+                        role={role}
+                        userId={userId}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

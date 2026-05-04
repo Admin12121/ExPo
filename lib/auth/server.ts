@@ -116,6 +116,7 @@ export const auth = betterAuth({
               banned: users.banned,
               isActive: users.isActive,
               deletedAt: users.deletedAt,
+              emailVerified: users.emailVerified,
             })
             .from(users)
             .where(eq(users.id, session.userId))
@@ -125,6 +126,13 @@ export const auth = betterAuth({
             throw APIError.from("FORBIDDEN", {
               code: "ACCOUNT_DISABLED",
               message: "This account cannot sign in.",
+            });
+          }
+          // require verified email before allowing session creation
+          if (!user.emailVerified) {
+            throw APIError.from("FORBIDDEN", {
+              code: "EMAIL_NOT_VERIFIED",
+              message: "Email address not verified.",
             });
           }
         },
@@ -166,8 +174,9 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-    // send verification (OTP) on sign-up so users receive an OTP
-    sendOnSignUp: true,
+    // do NOT send the default verification link on sign-up —
+    // we prefer to use email-OTP flows (client will request OTP)
+    sendOnSignUp: false,
     sendVerificationEmail: async ({ user, url }) => {
       await sendAuthEmail({
         to: user.email,

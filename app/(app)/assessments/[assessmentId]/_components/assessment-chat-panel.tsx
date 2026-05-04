@@ -151,7 +151,7 @@ export function AssessmentChatPanel({
               <Avatar className="size-8">
                 <AvatarFallback>{initials(message.displayName) || "A"}</AvatarFallback>
               </Avatar>
-              <div className={cn("min-w-0 max-w-2xl", own && "text-right")}>
+              <div className={cn("min-w-0 max-w-2xl", own && "text-right")}> 
                 <div
                   className={cn(
                     "mb-1 flex items-center gap-2 text-muted-foreground text-xs",

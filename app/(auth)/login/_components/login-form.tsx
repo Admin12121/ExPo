@@ -65,6 +65,17 @@ export function LoginForm({
     setLoading(false);
 
     if (result.error) {
+      const errorCode = result.error.code ?? "";
+
+      if (errorCode === "EMAIL_NOT_VERIFIED") {
+        try {
+          sessionStorage.setItem("auth:verify:email", email);
+        } catch {}
+
+        router.push("/email-otp/verify");
+        return;
+      }
+
       setError(
         result.error.message ??
           (mode === "signin"
@@ -87,8 +98,11 @@ export function LoginForm({
     // Support both shapes: result.token or result.data?.token
     const token = (result as any).token ?? (result as any)?.data?.token ?? null;
     if (!token) {
-      // send user to the email-otp verify page so they can enter the OTP sent to email
-      router.push(`/email-otp/verify?email=${encodeURIComponent(email)}`);
+      // store email in sessionStorage (prevents URL tampering) and redirect
+      try {
+        sessionStorage.setItem("auth:verify:email", email);
+      } catch {}
+      router.push(`/email-otp/verify`);
       return;
     }
 

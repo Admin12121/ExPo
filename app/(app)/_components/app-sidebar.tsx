@@ -11,7 +11,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type * as React from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +24,11 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { authClient } from "@/lib/auth/client";
+
+import { NavDocuments } from "./nav-document";
+import { NavSecondary } from "./nav-secondary";
+import { NavUser } from "./nav-user";
+import Image from "next/image";
 
 type AppUser = {
   name: string;
@@ -55,13 +58,15 @@ const navigation = [
         icon: UsersIcon,
         roles: ["admin"],
       },
-      {
-        title: "Settings",
-        href: "/settings",
-        icon: SettingsIcon,
-        roles: ["admin", "writer", "user"],
-      },
     ],
+  },
+];
+
+const secondaryNavigation = [
+  {
+    title: "Settings",
+    href: "/settings",
+    icon: SettingsIcon,
   },
 ];
 
@@ -75,22 +80,11 @@ function normalizePath(pathname: string | null) {
     : pathname;
 }
 
-function formatRole(role: string) {
-  return role.charAt(0).toUpperCase() + role.slice(1);
-}
-
 export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { user: AppUser }) {
-  const router = useRouter();
   const pathname = normalizePath(usePathname());
-
-  async function signOut() {
-    await authClient.signOut();
-    router.push("/login");
-    router.refresh();
-  }
 
   function isActive(href: string) {
     if (href === "/dashboard") {
@@ -105,19 +99,28 @@ export function AppSidebar({
       <SidebarHeader className="border-b">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
-            <SidebarMenuButton render={<Link href="/dashboard" />}>
-              <ShieldIcon className="size-5" />
-              <span className="text-base font-semibold">Athena</span>
+            <SidebarMenuButton
+              render={<Link href="/dashboard" />}
+              className="flex items-center"
+            >
+              <Image
+                src="/logo.webp"
+                priority
+                alt="ExPO"
+                height={32}
+                width={32}
+                className="rounded-md"
+              />
+              <span className="text-base font-semibold">ExPO</span>
             </SidebarMenuButton>
             <SidebarTrigger className="-ml-1 flex sm:hidden" />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="h-full">
         {navigation.map((section) => (
           <SidebarGroup key={section.label}>
-            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items
@@ -142,21 +145,22 @@ export function AppSidebar({
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
-      </SidebarContent>
 
-      <SidebarFooter className="border-t">
-        <div className="grid gap-3 p-2">
-          <div className="min-w-0 text-sm">
-            <div className="truncate font-medium">{user.name}</div>
-            <div className="truncate text-muted-foreground">{user.email}</div>
-            <div className="text-xs text-muted-foreground">
-              {formatRole(user.role)}
-            </div>
-          </div>
-          <Button onClick={() => void signOut()} size="sm" variant="outline">
-            Sign out
-          </Button>
-        </div>
+        <NavSecondary
+          items={secondaryNavigation}
+          isItemActive={isActive}
+          className="mt-auto"
+        />
+      </SidebarContent>
+      <SidebarFooter>
+        <NavUser
+          user={{
+            name: user.name,
+            email: user.email,
+            image: undefined,
+            role: user.role,
+          }}
+        />
       </SidebarFooter>
     </Sidebar>
   );

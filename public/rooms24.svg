@@ -1,0 +1,6 @@
+<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="500" height="500" rx="96" fill="#111827" />
+  <rect x="44" y="44" width="412" height="412" rx="76" stroke="#374151" stroke-width="8" />
+  <text x="250" y="228" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="84" font-weight="700" fill="#F9FAFB">Athena</text>
+  <text x="250" y="300" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="600" fill="#9CA3AF">Rooms24</text>
+</svg>

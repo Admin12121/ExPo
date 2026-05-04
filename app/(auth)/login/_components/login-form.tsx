@@ -1,20 +1,19 @@
 "use client";
 
-import {
-  KeyRoundIcon,
-  MailIcon,
-  ShieldIcon,
-  UserPlusIcon,
-} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type * as React from "react";
 import { useState } from "react";
+import { RiGoogleFill } from "@remixicon/react";
 
+import { authClient } from "@/lib/auth/client";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import {
   Field,
+  FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -22,69 +21,30 @@ import {
 import { Form } from "@/components/ui/form";
 import { Frame } from "@/components/ui/frame";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth/client";
 
 type AuthMode = "signin" | "signup";
-type Method = "password" | "otp";
 
-type LoginFormProps = {
-  nextPath: string;
-  disabledMessage?: string;
-};
-
-function getErrorMessage(error: unknown, fallback: string) {
-  if (
-    error &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-
-  return fallback;
-}
-
-async function postAuth(path: string, body: unknown) {
-  const response = await fetch(`/api/auth${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    throw new Error(
-      data?.message ??
-        data?.error?.message ??
-        `Authentication failed with status ${response.status}.`,
-    );
-  }
-
-  return response.json().catch(() => ({}));
-}
-
-export function LoginForm({ nextPath, disabledMessage }: LoginFormProps) {
+export function LoginForm({
+  nextPath = "/dashboard",
+  disabledMessage,
+  className,
+  ...props
+}: React.ComponentProps<"div"> & {
+  nextPath?: string;
+  disabledMessage?: string | undefined;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("signin");
-  const [method, setMethod] = useState<Method>("password");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState<string | null>(disabledMessage ?? null);
-  const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function submitEmailPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
-    setMessage(null);
 
     const result =
       mode === "signin"
@@ -116,257 +76,137 @@ export function LoginForm({ nextPath, disabledMessage }: LoginFormProps) {
     router.refresh();
   }
 
-  async function sendOtp() {
-    try {
-      setLoading(true);
-      setError(null);
-      setMessage(null);
-      await postAuth("/email-otp/send-verification-otp", {
-        email,
-        type: "sign-in",
-      });
-      setOtpSent(true);
-      setMessage("Email code sent.");
-    } catch (error) {
-      setError(getErrorMessage(error, "Unable to send email code."));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function verifyOtp(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    try {
-      setLoading(true);
-      setError(null);
-      setMessage(null);
-      await postAuth("/sign-in/email-otp", {
-        email,
-        otp,
-      });
-      router.push(nextPath);
-      router.refresh();
-    } catch (error) {
-      setError(getErrorMessage(error, "The email code is invalid."));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function signInWithPasskey() {
-    try {
-      setLoading(true);
-      setError(null);
-      setMessage(null);
-      const result = await authClient.signIn.passkey();
-
-      if (result.error) {
-        throw result.error;
-      }
-
-      router.push(nextPath);
-      router.refresh();
-    } catch (error) {
-      setError(getErrorMessage(error, "Unable to sign in with passkey."));
-    } finally {
-      setLoading(false);
-    }
+  async function signInWithSocial(provider: "google") {
+    setError(null);
+    await authClient.signIn.social({
+      provider,
+      callbackURL: nextPath,
+    });
   }
 
   return (
-    <Frame className="border-none p-5">
-      <div className="mb-5 text-center">
-        <Link
-          href="/"
-          className="inline-flex flex-col items-center gap-2 font-medium text-3xl"
-        >
-          <span className="flex size-12 items-center justify-center rounded-lg border bg-background">
-            <ShieldIcon className="size-6" />
-          </span>
-          Athena
-        </Link>
-      </div>
-      <CardContent className="px-0 py-0">
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <Button
-            onClick={() => setMethod("password")}
-            size="sm"
-            type="button"
-            variant={method === "password" ? "default" : "outline"}
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Frame className="border-none py-5">
+        <div className="mb-5 text-center">
+          <Link
+            href="/"
+            className="flex flex-col items-center gap-2 self-center font-medium text-3xl"
           >
-            <KeyRoundIcon />
-            Password
-          </Button>
-          <Button
-            onClick={() => setMethod("otp")}
-            size="sm"
-            type="button"
-            variant={method === "otp" ? "default" : "outline"}
-          >
-            <MailIcon />
-            Email OTP
-          </Button>
+            <div className="flex size-14 items-center justify-center rounded-md">
+              <Image
+                src="/logo.webp"
+                priority
+                alt="ExPO"
+                height={500}
+                width={500}
+                className="rounded-md"
+              />
+            </div>
+            ExPo
+          </Link>
         </div>
-
-        {method === "password" ? (
+        <CardContent className="px-4 py-0">
           <Form onSubmit={submitEmailPassword}>
             <FieldGroup>
+              <Field className="flex w-full flex-row items-center justify-center gap-2">
+                <Button
+                  type="button"
+                  className="w-full px-4"
+                  onClick={() => signInWithSocial("google")}
+                >
+                  <RiGoogleFill />
+                  Google
+                </Button>
+              </Field>
+              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-[#262629] mt-1">
+                Or
+              </FieldSeparator>
               {mode === "signup" && (
                 <Field>
                   <FieldLabel htmlFor="name">Name</FieldLabel>
                   <Input
-                    autoComplete="name"
                     id="name"
                     name="name"
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Your name"
-                    required
                     type="text"
                     value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Your name"
+                    autoComplete="name"
+                    required
+                    className="border-border"
                   />
                 </Field>
               )}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
-                  autoComplete="email"
                   id="email"
                   name="email"
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="m@example.com"
-                  required
                   type="email"
                   value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="m@example.com"
+                  autoComplete="email"
+                  required
+                  className="border-border"
                 />
               </Field>
               <Field>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
                 <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
                   autoComplete={
                     mode === "signin" ? "current-password" : "new-password"
                   }
-                  id="password"
-                  maxLength={128}
                   minLength={8}
-                  name="password"
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter your password"
+                  maxLength={128}
                   required
-                  type="password"
-                  value={password}
+                  className="border-border"
                 />
+                {error && <FieldError>{error}</FieldError>}
               </Field>
-              {error ? (
-                <p className="text-destructive-foreground text-xs">{error}</p>
-              ) : null}
-              {message ? (
-                <p className="text-muted-foreground text-xs">{message}</p>
-              ) : null}
-              <Field>
-                <Button loading={loading} type="submit">
-                  {mode === "signin" ? "Sign in" : "Sign up"}
-                </Button>
+              <Button type="submit" loading={loading}>
+                {mode === "signin" ? "Sign in" : "Sign up"}
+              </Button>
+              <Field className="space-y-1 w-full">
+                <FieldDescription className="text-center flex items-center justify-center gap-1 w-full">
+                  {mode === "signin" ? (
+                    <>
+                      Don&apos;t have an account?{" "}
+                      <button
+                        type="button"
+                        className="underline-offset-4 hover:underline"
+                        onClick={() => setMode("signup")}
+                      >
+                        Sign up
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        className="underline-offset-4 hover:underline"
+                        onClick={() => setMode("signin")}
+                      >
+                        Sign in
+                      </button>
+                    </>
+                  )}
+                </FieldDescription>
               </Field>
             </FieldGroup>
           </Form>
-        ) : (
-          <Form onSubmit={verifyOtp}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="otp-email">Email</FieldLabel>
-                <Input
-                  autoComplete="email"
-                  id="otp-email"
-                  name="email"
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="m@example.com"
-                  required
-                  type="email"
-                  value={email}
-                />
-              </Field>
-              {otpSent && (
-                <Field>
-                  <FieldLabel htmlFor="otp">Code</FieldLabel>
-                  <Input
-                    autoComplete="one-time-code"
-                    id="otp"
-                    inputMode="numeric"
-                    minLength={6}
-                    name="otp"
-                    onChange={(event) => setOtp(event.target.value)}
-                    required
-                    value={otp}
-                  />
-                </Field>
-              )}
-              {error ? (
-                <p className="text-destructive-foreground text-xs">{error}</p>
-              ) : null}
-              {message ? (
-                <p className="text-muted-foreground text-xs">{message}</p>
-              ) : null}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  disabled={!email}
-                  loading={loading && !otpSent}
-                  onClick={() => void sendOtp()}
-                  type="button"
-                  variant="outline"
-                >
-                  Send code
-                </Button>
-                <Button disabled={!otpSent} loading={loading} type="submit">
-                  Verify
-                </Button>
-              </div>
-            </FieldGroup>
-          </Form>
-        )}
-
-        <FieldSeparator className="my-4">Or use a device key</FieldSeparator>
-        <Button
-          className="w-full"
-          disabled={loading}
-          onClick={() => void signInWithPasskey()}
-          type="button"
-          variant="outline"
-        >
-          <KeyRoundIcon />
-          Continue with passkey
-        </Button>
-
-        <p className="mt-4 text-center text-muted-foreground text-xs">
-          {mode === "signin" ? (
-            <>
-              Don&apos;t have an account?{" "}
-              <button
-                className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                onClick={() => {
-                  setMode("signup");
-                  setMethod("password");
-                }}
-                type="button"
-              >
-                <UserPlusIcon className="size-3" />
-                Sign up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                className="underline-offset-4 hover:underline"
-                onClick={() => setMode("signin")}
-                type="button"
-              >
-                Sign in
-              </button>
-            </>
-          )}
-        </p>
-      </CardContent>
-    </Frame>
+        </CardContent>
+      </Frame>
+      <p className="px-6 text-center text-muted-foreground text-xs">
+        By continuing, you agree to our Terms and Privacy Policy.
+      </p>
+    </div>
   );
 }

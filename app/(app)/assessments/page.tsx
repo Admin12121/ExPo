@@ -9,7 +9,14 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFrame,
+  CardFrameFooter,
+} from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Frame, FramePanel } from "@/components/ui/frame";
 import { Input } from "@/components/ui/input";
@@ -115,38 +122,51 @@ function AssessmentCard({
   userId: string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-base">{item.title}</CardTitle>
-            <div className="mt-1 truncate text-muted-foreground text-sm">
-              {item.topic}
+    <div className="relative flex min-w-0">
+      <CardFrame className="w-full">
+        <Card className="min-h-50 flex-1 flex-col flex-wrap overflow-x-auto">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <CardTitle className="truncate text-base">{item.title}</CardTitle>
+                <div className="mt-1 truncate text-muted-foreground text-sm">
+                  {item.topic}
+                </div>
+              </div>
+              <Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>
             </div>
-          </div>
-          <Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <p className="line-clamp-3 text-sm text-muted-foreground">
-          {item.description}
-        </p>
-        <div className="grid gap-2 text-sm sm:grid-cols-3">
-          <span className="flex items-center gap-2">
-            <CircleDollarSignIcon className="size-4 text-muted-foreground" />
-            {formatMoney(item.priceCents, item.currency)}
-          </span>
-          <span className="flex items-center gap-2">
-            <CalendarClockIcon className="size-4 text-muted-foreground" />
-            {formatDate(item.deadlineAt)}
-          </span>
-          <span className="truncate text-muted-foreground">
-            Writer: {item.writer?.name ?? "Unclaimed"}
-          </span>
-        </div>
-        <AssessmentActions item={item} role={role} userId={userId} />
-      </CardContent>
-    </Card>
+          </CardHeader>
+
+          <CardContent className="grid gap-4">
+            <p className="line-clamp-3 text-sm text-muted-foreground">
+              {item.description}
+            </p>
+            <div className="grid gap-2 text-sm sm:grid-cols-3">
+              <span className="flex items-center gap-2">
+                <CircleDollarSignIcon className="size-4 text-muted-foreground" />
+                {formatMoney(item.priceCents, item.currency)}
+              </span>
+              <span className="flex items-center gap-2">
+                <CalendarClockIcon className="size-4 text-muted-foreground" />
+                {formatDate(item.deadlineAt)}
+              </span>
+              <span className="truncate text-muted-foreground">
+                Writer: {item.writer?.name ?? "Unclaimed"}
+              </span>
+            </div>
+          </CardContent>
+
+          <CardFrameFooter className="flex items-center gap-3 p-2">
+            <p className="flex flex-1 gap-1 truncate text-muted-foreground text-xs">
+              <span className="truncate">{item.description}</span>
+            </p>
+            <div className="flex items-center gap-1.5">
+              <AssessmentActions item={item} role={role} userId={userId} />
+            </div>
+          </CardFrameFooter>
+        </Card>
+      </CardFrame>
+    </div>
   );
 }
 
@@ -164,9 +184,6 @@ export default async function AssessmentsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-lg font-semibold">Assessments</h1>
-          <p className="text-muted-foreground text-sm">
-            Upload, claim, complete, verify payment, and track assessment work.
-          </p>
         </div>
         <Badge variant="outline">{role}</Badge>
       </div>
@@ -185,7 +202,7 @@ export default async function AssessmentsPage() {
         ))}
       </div>
 
-      {role === "user" || role === "admin" ? (
+      {role === "user" ? (
         <form action={createAssessmentAction} encType="multipart/form-data">
           <Frame className="grid gap-1">
             <FramePanel className="grid gap-4">

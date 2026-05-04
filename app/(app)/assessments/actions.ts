@@ -22,6 +22,11 @@ function getText(formData: FormData, key: string) {
 
 export async function createAssessmentAction(formData: FormData) {
   const session = await requireSession("/assessments");
+
+  if (session.user.role !== "user") {
+    throw new Error("Only users can create and upload assessments.");
+  }
+
   const assessmentId = await createAssessmentFromForm(session.user, formData);
 
   revalidatePath("/assessments");

@@ -14,6 +14,12 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { authSchema, users } from "@/lib/db/schema";
+import {
+  resetPasswordEmail,
+  signInOtpEmail,
+  twoFactorOtpEmail,
+  verifyEmailEmail,
+} from "@/lib/server/email-templates";
 import { sendAuthEmail } from "@/lib/server/email";
 
 const APP_NAME = "Athena";
@@ -85,10 +91,6 @@ function getPasskeyRpId() {
   }
 }
 
-function getResetPasswordHtml(url: string) {
-  return `<p>Use this link to reset your Athena password:</p><p><a href="${url}">${url}</a></p>`;
-}
-
 export const auth = betterAuth({
   appName: APP_NAME,
   basePath: "/api/auth",
@@ -152,22 +154,25 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     maxPasswordLength: 128,
+    // do not automatically sign users in after sign-up — create account only
+    autoSignIn: false,
     sendResetPassword: async ({ user, url }) => {
       await sendAuthEmail({
         to: user.email,
         subject: "Reset your Athena password",
-        html: getResetPasswordHtml(url),
+        react: resetPasswordEmail(url, APP_NAME),
         text: `Reset your Athena password: ${url}`,
       });
     },
   },
   emailVerification: {
-    sendOnSignUp: false,
+    // send verification (OTP) on sign-up so users receive an OTP
+    sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
       await sendAuthEmail({
         to: user.email,
         subject: "Verify your Athena email",
-        html: `<p>Verify your Athena email address:</p><p><a href="${url}">${url}</a></p>`,
+        react: verifyEmailEmail(url, APP_NAME),
         text: `Verify your Athena email address: ${url}`,
       });
     },
@@ -185,7 +190,8 @@ export const auth = betterAuth({
       bannedUserMessage: "This account cannot sign in.",
     }),
     emailOTP({
-      disableSignUp: true,
+      // allow sign-ups (was disabling sign-up globally)
+      disableSignUp: false,
       overrideDefaultEmailVerification: true,
       expiresIn: 300,
       allowedAttempts: 3,
@@ -196,7 +202,7 @@ export const auth = betterAuth({
             type === "sign-in"
               ? "Your Athena sign-in code"
               : "Your Athena verification code",
-          html: `<p>Your Athena code is <strong>${otp}</strong>.</p><p>This code expires in 5 minutes.</p>`,
+          react: signInOtpEmail(otp, APP_NAME, 5),
           text: `Your Athena code is ${otp}. It expires in 5 minutes.`,
         });
       },
@@ -212,7 +218,7 @@ export const auth = betterAuth({
           await sendAuthEmail({
             to: user.email,
             subject: "Your Athena two-factor code",
-            html: `<p>Your Athena two-factor code is <strong>${otp}</strong>.</p><p>This code expires shortly.</p>`,
+            react: twoFactorOtpEmail(otp, APP_NAME),
             text: `Your Athena two-factor code is ${otp}.`,
           });
         },

@@ -34,11 +34,13 @@ export function LoginForm({
   disabledMessage?: string | undefined;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>("signin");
+  // default to signup so the login page creates users by default
+  const [mode, setMode] = useState<AuthMode>("signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(disabledMessage ?? null);
+  const [highlightForgot, setHighlightForgot] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function submitEmailPassword(event: React.FormEvent<HTMLFormElement>) {
@@ -69,6 +71,24 @@ export function LoginForm({
             ? "Unable to sign in."
             : "Unable to create your account."),
       );
+
+      // if signin failed due to wrong password, highlight forgotten password
+      if (mode === "signin") {
+        const msg = (result.error.message ?? "").toLowerCase();
+        if (msg.includes("password") || msg.includes("invalid") || msg.includes("credentials")) {
+          setHighlightForgot(true);
+        }
+      }
+      return;
+    }
+
+    // If signup did not create a session (token null), redirect to OTP/verification page
+    // Better Auth returns no session when `autoSignIn` is false or verification is required.
+    // Support both shapes: result.token or result.data?.token
+    const token = (result as any).token ?? (result as any)?.data?.token ?? null;
+    if (!token) {
+      // send user to the email-otp verify page so they can enter the OTP sent to email
+      router.push(`/email-otp/verify?email=${encodeURIComponent(email)}`);
       return;
     }
 
@@ -169,6 +189,18 @@ export function LoginForm({
                   className="border-border"
                 />
                 {error && <FieldError>{error}</FieldError>}
+                <div className="mt-2 text-right">
+                  <Link
+                    href="/forgot-password"
+                    className={
+                      highlightForgot
+                        ? "text-destructive underline font-medium"
+                        : "underline-offset-4 hover:underline"
+                    }
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
               </Field>
               <Button type="submit" loading={loading}>
                 {mode === "signin" ? "Sign in" : "Sign up"}

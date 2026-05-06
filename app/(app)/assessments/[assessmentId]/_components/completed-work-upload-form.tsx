@@ -11,7 +11,12 @@ import { AssessmentFileTableUpload } from "../../_components/assessment-file-upl
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
-import { FramePanel } from "@/components/ui/frame";
+import {
+  Frame,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/ui/frame";
 
 const MAX_FILES = 3;
 const COMPLETED_MAX_SIZE = 30 * 1024 * 1024;
@@ -101,32 +106,31 @@ export function CompletedWorkUploadForm({
   }
 
   return (
-    <FramePanel className="grid gap-3">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <FileCheckIcon className="size-4 text-muted-foreground" />
-        Complete work
-      </div>
-      <Form className="grid gap-3" onSubmit={handleSubmit(submit)}>
-        <Field>
-          <FieldLabel>Completed file</FieldLabel>
-          <AssessmentFileTableUpload
-            accept={COMPLETED_ACCEPT}
-            error={errors.files?.message}
-            maxFiles={MAX_FILES}
-            maxSize={COMPLETED_MAX_SIZE}
-            onFilesChange={handleFilesChange}
-          />
-        </Field>
-        {errors.root?.message ? (
-          <p className="text-destructive-foreground text-xs" role="alert">
-            {errors.root.message}
-          </p>
-        ) : null}
-        <Button loading={isSubmitting} type="submit">
-          <UploadIcon />
-          Upload completed file
-        </Button>
-      </Form>
-    </FramePanel>
+    // <Frame>
+    //   <FrameHeader className="p-2">
+    //     <FrameTitle className="flex gap-2">
+    //       <FileCheckIcon className="size-4 text-muted-foreground" />
+    //       Complete work
+    //     </FrameTitle>
+    //   </FrameHeader>
+    //   <FramePanel>
+    <Form className="grid gap-3" onSubmit={handleSubmit(submit)}>
+      <Field className={"items-center justify-center"}>
+        <AssessmentFileTableUpload
+          accept={COMPLETED_ACCEPT}
+          error={errors.files?.message}
+          maxFiles={MAX_FILES}
+          maxSize={COMPLETED_MAX_SIZE}
+          onFilesChange={handleFilesChange}
+        />
+      </Field>
+      {errors.root?.message ? (
+        <p className="text-destructive-foreground text-xs" role="alert">
+          {errors.root.message}
+        </p>
+      ) : null}
+    </Form>
+    //   </FramePanel>
+    // </Frame>
   );
 }

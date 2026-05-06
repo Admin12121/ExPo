@@ -1,16 +1,7 @@
-import {
-  AlertTriangleIcon,
-  CheckCircle2Icon,
-  DownloadIcon,
-  HandshakeIcon,
-  LockIcon,
-  UploadIcon,
-} from "lucide-react";
+import { DownloadIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Frame,
   FrameDescription,
@@ -18,8 +9,6 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/ui/frame";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { requireSession } from "@/lib/auth/session";
 import { getAssessmentMessages } from "@/lib/server/assessment-chat";
 import { getAssessmentDetail } from "@/lib/server/assessments";
@@ -27,18 +16,12 @@ import { getAssessmentDetail } from "@/lib/server/assessments";
 import { AssessmentChatPanel } from "./_components/assessment-chat-panel";
 import {
   completeAssessmentAction,
-  reportAssessmentAction,
-  requestCloseAction,
-  resolveReportAction,
-  submitPaymentProofAction,
-  verifyPaymentAction,
 } from "../actions";
 import { CompletedWorkUploadForm } from "./_components/completed-work-upload-form";
 import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -68,13 +51,6 @@ function formatMoney(cents: number, currency: string) {
   }).format(cents / 100);
 }
 
-function statusLabel(status: string) {
-  return status
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function isChatOpen(status: string) {
   return [
     "in_progress",
@@ -94,28 +70,19 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const { assessment, closeRequests, files, reports } = detail;
+  const { assessment, files } = detail;
   const messages = await getAssessmentMessages(assessment.id);
   const role = session.user.role ?? "user";
-  const isOwner = assessment.userId === session.user.id;
   const isWriter = assessment.writerId === session.user.id;
   const isAdmin = role === "admin";
   const canComplete =
     (isWriter || isAdmin) &&
     ["in_progress", "close_requested"].includes(assessment.status);
-  const canSubmitPayment =
-    (isOwner || isAdmin) && assessment.status === "completed_pending_payment";
-  const canVerifyPayment =
-    (isWriter || isAdmin) && assessment.status === "payment_submitted";
-  const canClose =
-    (isOwner || isWriter || isAdmin) &&
-    ["in_progress", "close_requested"].includes(assessment.status);
-  const canReport = isOwner || isWriter || isAdmin;
 
   return (
     <main className="grid gap-4 p-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="grid gap-4">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="grid content-start gap-4">
           <Frame>
             <FrameHeader className="p-2">
               <FrameTitle className="truncate text-lg font-semibold">

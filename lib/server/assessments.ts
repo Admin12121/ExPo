@@ -121,13 +121,31 @@ function assertRole(user: AppSessionUser, roles: UserRole[]) {
 
 function canViewAssessment(
   user: AppSessionUser,
-  assessment: Pick<typeof assessments.$inferSelect, "userId" | "writerId">,
+  assessment: Pick<
+    typeof assessments.$inferSelect,
+    "status" | "userId" | "writerId"
+  >,
 ) {
   const role = asRole(user.role);
   return (
     role === "admin" ||
     assessment.userId === user.id ||
-    assessment.writerId === user.id
+    assessment.writerId === user.id ||
+    canReviewOpenAssessment(user, assessment)
+  );
+}
+
+function canReviewOpenAssessment(
+  user: AppSessionUser,
+  assessment: Pick<
+    typeof assessments.$inferSelect,
+    "status" | "writerId"
+  >,
+) {
+  return (
+    asRole(user.role) === "writer" &&
+    assessment.status === "open" &&
+    assessment.writerId === null
   );
 }
 
@@ -272,7 +290,10 @@ export async function getAssessmentWorkspace(user: AppSessionUser) {
     role === "admin"
       ? undefined
       : role === "writer"
-        ? or(eq(assessments.writerId, user.id), eq(assessments.status, "open"))
+        ? or(
+            eq(assessments.writerId, user.id),
+            and(eq(assessments.status, "open"), isNull(assessments.writerId)),
+          )
         : eq(assessments.userId, user.id);
 
   const rows = await db
@@ -828,6 +849,8 @@ export async function getDownloadableAssessmentFile(
   const isOwner = detail.assessment.userId === user.id;
   const isWriter = detail.assessment.writerId === user.id;
   const isAdmin = role === "admin";
+  const canReviewSource =
+    file.kind === "source" && canReviewOpenAssessment(user, detail.assessment);
 
   if (file.kind === "completed") {
     const unlocked =
@@ -851,7 +874,7 @@ export async function getDownloadableAssessmentFile(
         })
         .where(eq(assessments.id, assessmentId));
     }
-  } else if (!isAdmin && !isOwner && !isWriter) {
+  } else if (!isAdmin && !isOwner && !isWriter && !canReviewSource) {
     return null;
   }
 

@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { Frame } from "@/components/ui/frame";
 
 type AssessmentFileUploadProps = {
   accept?: string;
@@ -95,6 +96,22 @@ function getFileIcon(file: UploadFileItem) {
   }
 
   return <FileIcon className="size-4 opacity-60" />;
+}
+
+function formatAcceptedTypes(accept?: string) {
+  if (!accept) {
+    return "All files";
+  }
+
+  const types = accept
+    .split(",")
+    .map((type) => type.trim())
+    .filter(Boolean)
+    .map((type) =>
+      type.startsWith(".") ? type.slice(1).toUpperCase() : type.toUpperCase(),
+    );
+
+  return types.length > 0 ? types.join(", ") : "All files";
 }
 
 function useAssessmentUpload({
@@ -163,7 +180,10 @@ export function AssessmentFileDropzone(props: AssessmentFileUploadProps) {
   return (
     <div className="flex flex-col gap-2 w-full">
       <div
-        className={cn("flex min-h-50 cursor-pointer flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50", files.length >= maxFiles && "hidden")}
+        className={cn(
+          "flex min-h-50 cursor-pointer flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50",
+          files.length >= maxFiles && "hidden",
+        )}
         data-dragging={isDragging || undefined}
         onClick={openFileDialog}
         onDragEnter={handleDragEnter}
@@ -193,7 +213,7 @@ export function AssessmentFileDropzone(props: AssessmentFileUploadProps) {
       </div>
 
       <div className="flex flex-wrap justify-center gap-1 text-muted-foreground/70 text-xs">
-        <span>All files</span>
+        <span>{formatAcceptedTypes(props.accept)}</span>
         <span>∙</span>
         <span>Max {maxFiles} files</span>
         <span>∙</span>
@@ -282,7 +302,7 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
   const error = props.error ?? errors[0];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 w-full">
       <div
         className="flex min-h-56 flex-col items-center rounded-xl border border-input border-dashed p-4 transition-colors not-data-[files]:justify-center has-[input:focus]:border-ring has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[files]:hidden data-[dragging=true]:bg-accent/50"
         data-dragging={isDragging || undefined}
@@ -305,7 +325,8 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
           </div>
           <p className="mb-1.5 font-medium text-sm">Upload files</p>
           <p className="text-muted-foreground text-xs">
-            Max {maxFiles} files ∙ Up to {formatBytes(props.maxSize)}
+            {formatAcceptedTypes(props.accept)} / Max {maxFiles} files / Up to{" "}
+            {formatBytes(props.maxSize)}
           </p>
           <Button
             className="mt-4"
@@ -350,10 +371,10 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
               </Button>
             </div>
           </div>
-          <div className="overflow-hidden rounded-md border bg-background">
-            <Table>
+          <Frame>
+            <Table variant="card" >
               <TableHeader className="text-xs">
-                <TableRow className="bg-muted/50">
+                <TableRow>
                   <TableHead className="h-9 py-2">Name</TableHead>
                   <TableHead className="h-9 py-2">Type</TableHead>
                   <TableHead className="h-9 py-2">Size</TableHead>
@@ -407,33 +428,19 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
                 })}
               </TableBody>
             </Table>
-          </div>
+          </Frame>
         </>
       ) : null}
 
       {error ? (
         <div
-          className="flex items-center gap-1 text-destructive text-xs"
+          className="flex items-center gap-1 text-destructive text-xs justify-center"
           role="alert"
         >
           <AlertCircleIcon className="size-3 shrink-0" />
           <span>{error}</span>
         </div>
       ) : null}
-
-      <p
-        aria-live="polite"
-        className="mt-2 text-center text-muted-foreground text-xs"
-        role="region"
-      >
-        Multiple files uploader w/ table ∙{" "}
-        <a
-          className="underline hover:text-foreground"
-          href="https://github.com/cosscom/coss/blob/main/apps/origin/docs/use-file-upload.md"
-        >
-          API
-        </a>
-      </p>
     </div>
   );
 }

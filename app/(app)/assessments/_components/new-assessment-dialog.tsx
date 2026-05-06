@@ -14,12 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
   DialogPopup,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
@@ -29,7 +24,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset";
+import { Fieldset } from "@/components/ui/fieldset";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
@@ -44,6 +39,8 @@ import {
 
 const MAX_FILES = 3;
 const SOURCE_MAX_SIZE = 30 * 1024 * 1024;
+const SOURCE_ACCEPT = ".pdf,.docx,.txt,.zip";
+const SOURCE_EXTENSIONS = new Set(["pdf", "docx", "txt", "zip"]);
 
 function isFile(value: unknown): value is File {
   return value instanceof File && value.size > 0;
@@ -57,6 +54,10 @@ function formatDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function getExtension(fileName: string) {
+  return fileName.split(".").pop()?.toLowerCase() ?? "";
+}
+
 const newAssessmentSchema = z.object({
   deadlineAt: z.string().optional(),
   description: z.string().trim().min(1, "Description is required.").max(4000),
@@ -64,7 +65,11 @@ const newAssessmentSchema = z.object({
     .array(
       z
         .custom<File>(isFile, "Source file is required.")
-        .refine((file) => file.size <= SOURCE_MAX_SIZE, "File is too large."),
+        .refine((file) => file.size <= SOURCE_MAX_SIZE, "File is too large.")
+        .refine(
+          (file) => SOURCE_EXTENSIONS.has(getExtension(file.name)),
+          "Use a PDF, DOCX, TXT, or ZIP file.",
+        ),
     )
     .min(1, "Source file is required.")
     .max(MAX_FILES, `Upload up to ${MAX_FILES} files.`),
@@ -268,6 +273,7 @@ export default function NewAssessmentDialog() {
               <Field>
                 <FieldLabel>Assessment Files</FieldLabel>
                 <AssessmentFileDropzone
+                  accept={SOURCE_ACCEPT}
                   error={errors.files?.message}
                   maxFiles={MAX_FILES}
                   maxSize={SOURCE_MAX_SIZE}

@@ -200,6 +200,11 @@ export function AssessmentChatPanel({
           </Button>
         </div>
       </div>
+      {error ? (
+        <p className="text-destructive text-xs" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

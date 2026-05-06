@@ -2,19 +2,17 @@
 
 import * as React from "react";
 import {
-  EllipsisIcon,
-  EyeIcon,
   HandIcon,
   LayoutGrid,
   SearchIcon,
   TableProperties,
-  Trash,
   Trash2,
   XIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,13 +26,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import {
-  Menu,
-  MenuItem,
-  MenuPopup,
-  MenuSeparator,
-  MenuTrigger,
-} from "@/components/ui/menu";
 import {
   Select,
   SelectItem,
@@ -106,6 +97,12 @@ function statusVariant(status: string) {
   return "default";
 }
 
+function actionFormData(assessmentId: string) {
+  const formData = new FormData();
+  formData.set("assessmentId", assessmentId);
+  return formData;
+}
+
 function matchesStatus(
   item: AssessmentSummary,
   filter: AssessmentStatusFilter,
@@ -149,10 +146,18 @@ function AssessmentCard({
   role: string;
   userId: string;
 }) {
+  const router = useRouter();
   const canClaim =
     (role === "writer" || role === "admin") && item.status === "open";
   const canCancel =
     (role === "admin" || item.userId === userId) && item.status === "open";
+  const refreshAfterAction = (action: Promise<unknown>) => {
+    void action.then(
+      () => router.refresh(),
+      () => router.refresh(),
+    );
+  };
+
   return (
     <div className="relative flex min-w-0">
       <CardFrame
@@ -162,7 +167,7 @@ function AssessmentCard({
         )}
       >
         <Link href={`/assessments/${item.id}`}>
-          <Card className="min-h-75 flex-1 flex-col flex-wrap overflow-x-auto dark:bg-background">
+          <Card className="relative min-h-40 aspect-[4/3] flex-1 flex-col flex-wrap overflow-x-auto dark:bg-background">
             <CardPanel className="flex flex-1 items-center justify-center lg:px-8 lg:py-12 relative">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -171,7 +176,19 @@ function AssessmentCard({
                   </p>
                 </div>
               </div>
-            </CardPanel>{" "}
+            </CardPanel>
+            <div
+              className={cn(
+                badgeVariants({ variant: statusVariant(item.status) }),
+                "absolute top-[10px] right-[12px] p-0 size-1.5! min-w-1.5! animate-ping",
+              )}
+            />
+            <div
+              className={cn(
+                badgeVariants({ variant: statusVariant(item.status) }),
+                "absolute top-[12px] right-[12px] p-0 size-1! min-w-1!",
+              )}
+            />
           </Card>
         </Link>
         <CardFrameFooter className="flex items-center gap-3 p-2">
@@ -181,7 +198,11 @@ function AssessmentCard({
           </p>
           {canClaim ? (
             <Button
-              onClick={() => claimAssessmentAction({ assessmentId: item.id })}
+              onClick={() =>
+                refreshAfterAction(
+                  claimAssessmentAction(actionFormData(item.id)),
+                )
+              }
               size="icon-sm"
               variant="outline"
             >
@@ -190,7 +211,11 @@ function AssessmentCard({
           ) : null}
           {canCancel ? (
             <Button
-              onClick={() => cancelAssessmentAction({ assessmentId: item.id })}
+              onClick={() =>
+                refreshAfterAction(
+                  cancelAssessmentAction(actionFormData(item.id)),
+                )
+              }
               variant="destructive-outline"
             >
               <XIcon />
@@ -212,6 +237,14 @@ function AssessmentTable({
   role: string;
   userId: string;
 }) {
+  const router = useRouter();
+  const refreshAfterAction = (action: Promise<unknown>) => {
+    void action.then(
+      () => router.refresh(),
+      () => router.refresh(),
+    );
+  };
+
   return (
     <Frame>
       <Table variant="card">
@@ -254,7 +287,9 @@ function AssessmentTable({
                   {canClaim ? (
                     <Button
                       onClick={() =>
-                        claimAssessmentAction({ assessmentId: item.id })
+                        refreshAfterAction(
+                          claimAssessmentAction(actionFormData(item.id)),
+                        )
                       }
                       size="icon-sm"
                       variant="outline"
@@ -265,7 +300,9 @@ function AssessmentTable({
                   {canCancel ? (
                     <Button
                       onClick={() =>
-                        cancelAssessmentAction({ assessmentId: item.id })
+                        refreshAfterAction(
+                          cancelAssessmentAction(actionFormData(item.id)),
+                        )
                       }
                       variant="destructive-outline"
                       size={"icon-sm"}

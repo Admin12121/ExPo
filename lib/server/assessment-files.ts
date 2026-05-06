@@ -20,16 +20,13 @@ export type ValidatedUpload = {
 type UploadPurpose = AssessmentFileKind;
 
 const pdfDangerPatterns = [
-  /\/JavaScript\b/i,
-  /\/JS\b/i,
   /\/Launch\b/i,
-  /\/EmbeddedFile\b/i,
-  /\/OpenAction\b/i,
-  /\/AA\b/i,
   /\/RichMedia\b/i,
   /\/XFA\b/i,
   /\/SubmitForm\b/i,
   /\/ImportData\b/i,
+  /\/(?:JavaScript|JS)\b/i,
+  /\/(?:OpenAction|AA)\b[\s\S]{0,512}\/(?:JavaScript|JS|Launch|SubmitForm|ImportData)\b/i,
 ];
 
 const docxDangerPatterns = [

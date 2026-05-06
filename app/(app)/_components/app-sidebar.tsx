@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  ClipboardCheckIcon,
+  ClipboardList,
   LayoutDashboardIcon,
   SettingsIcon,
-  UsersIcon,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,13 +46,13 @@ const navigation = [
       {
         title: "Assessments",
         href: "/assessments",
-        icon: ClipboardCheckIcon,
+        icon: ClipboardList,
         roles: ["admin", "writer", "user"],
       },
       {
         title: "Users",
         href: "/users",
-        icon: UsersIcon,
+        icon: UsersRound,
         roles: ["admin"],
       },
     ],

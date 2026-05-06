@@ -6,7 +6,6 @@ import {
   LockIcon,
   UploadIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +34,15 @@ import {
   verifyPaymentAction,
 } from "../actions";
 import { CompletedWorkUploadForm } from "./_components/completed-work-upload-form";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type PageProps = {
   params: Promise<{
@@ -106,22 +114,17 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
 
   return (
     <main className="grid gap-4 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="mb-2">
-            <Button render={<Link href="/assessments" />} size="sm" variant="outline">
-              Back
-            </Button>
-          </div>
-          <h1 className="truncate text-lg font-semibold">{assessment.title}</h1>
-          <p className="text-muted-foreground text-sm">{assessment.topic}</p>
-        </div>
-        <Badge variant="outline">{statusLabel(assessment.status)}</Badge>
-      </div>
-
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="grid gap-4">
           <Frame>
+            <FrameHeader className="p-2">
+              <FrameTitle className="truncate text-lg font-semibold">
+                {assessment.topic}
+              </FrameTitle>
+              <FrameDescription className="text-muted-foreground text-sm">
+                {assessment.title}
+              </FrameDescription>
+            </FrameHeader>
             <FramePanel className="grid gap-4">
               <div className="grid gap-3 md:grid-cols-3">
                 <div>
@@ -149,80 +152,65 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
             </FramePanel>
           </Frame>
 
-          {canComplete ? (
-            <CompletedWorkUploadForm
-              action={completeAssessmentAction}
-              assessmentId={assessment.id}
-            />
-          ) : null}
-
           <Frame>
-            <FrameHeader>
-              <FrameTitle>Files</FrameTitle>
-              <FrameDescription>
-                Files are private and served only after authorization checks.
-              </FrameDescription>
-            </FrameHeader>
-            <FramePanel className="grid gap-2">
-              {files.length === 0 ? (
-                <div className="text-muted-foreground text-sm">No files.</div>
-              ) : (
-                files.map((file) => {
-                  const locked =
-                    file.kind === "completed" &&
-                    isOwner &&
-                    !["payment_verified", "downloaded", "archived"].includes(
-                      assessment.status,
-                    );
-
-                  return (
-                    <div
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-3 text-sm"
-                      key={file.id}
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">
-                          {file.originalName}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {file.kind.replace("_", " ")} -{" "}
-                          {Math.ceil(file.sizeBytes / 1024)}KB
-                        </div>
-                      </div>
-                      {locked ? (
-                        <Badge variant="warning">
-                          <LockIcon />
-                          Locked
-                        </Badge>
-                      ) : (
+            <Table variant="card">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>File Name</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {files.length === 0 ? (
+                  <TableRow className="text-muted-foreground text-sm">
+                    <TableCell colSpan={3} className="text-center">
+                      No files.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  files.map((file) => (
+                    <TableRow key={file.id}>
+                      <TableCell className="font-medium">
+                        {file.originalName}
+                      </TableCell>
+                      <TableCell>
+                        {Math.ceil(file.sizeBytes / 1024)}KB
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button
                           render={
                             <a
                               href={`/api/assessments/${assessment.id}/files/${file.id}`}
                             />
                           }
-                          size="sm"
-                          variant="outline"
+                          size="icon-sm"
+                          variant="secondary"
                         >
                           <DownloadIcon />
-                          Download
                         </Button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </FramePanel>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </Frame>
 
+          {canComplete ? (
+            <CompletedWorkUploadForm
+              action={completeAssessmentAction}
+              assessmentId={assessment.id}
+            />
+          ) : null}
+        </div>
+
+        <div className="grid content-start gap-4">
           <Frame>
-            <FrameHeader>
+            <FrameHeader className="p-2">
               <FrameTitle>Conversation</FrameTitle>
-              <FrameDescription>
-                Chat is scoped to this assessment.
-              </FrameDescription>
             </FrameHeader>
-            <FramePanel>
+            <FramePanel className="p-0">
               <AssessmentChatPanel
                 assessmentId={assessment.id}
                 canPost={isChatOpen(assessment.status)}
@@ -232,11 +220,11 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
               />
             </FramePanel>
           </Frame>
-        </div>
-
-        <div className="grid content-start gap-4">
-          {canSubmitPayment ? (
-            <form action={submitPaymentProofAction} encType="multipart/form-data">
+          {/* {canSubmitPayment ? (
+            <form
+              action={submitPaymentProofAction}
+              encType="multipart/form-data"
+            >
               <input name="assessmentId" type="hidden" value={assessment.id} />
               <FramePanel className="grid gap-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
@@ -266,7 +254,9 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
                   <CheckCircle2Icon className="size-4 text-muted-foreground" />
                   Payment verification
                 </div>
-                <Button type="submit">Verify payment and unlock download</Button>
+                <Button type="submit">
+                  Verify payment and unlock download
+                </Button>
               </FramePanel>
             </form>
           ) : null}
@@ -317,7 +307,10 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
               <div className="text-muted-foreground text-sm">None.</div>
             ) : (
               closeRequests.map((request) => (
-                <div className="rounded-lg border bg-background p-3 text-sm" key={request.id}>
+                <div
+                  className="rounded-lg border bg-background p-3 text-sm"
+                  key={request.id}
+                >
                   <div className="font-medium">{request.status}</div>
                   <div className="text-muted-foreground">{request.reason}</div>
                 </div>
@@ -331,13 +324,24 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
               <div className="text-muted-foreground text-sm">None.</div>
             ) : (
               reports.map((report) => (
-                <div className="grid gap-2 rounded-lg border bg-background p-3 text-sm" key={report.id}>
+                <div
+                  className="grid gap-2 rounded-lg border bg-background p-3 text-sm"
+                  key={report.id}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{report.status}</span>
                     {isAdmin && report.status === "open" ? (
                       <form action={resolveReportAction}>
-                        <input name="assessmentId" type="hidden" value={assessment.id} />
-                        <input name="reportId" type="hidden" value={report.id} />
+                        <input
+                          name="assessmentId"
+                          type="hidden"
+                          value={assessment.id}
+                        />
+                        <input
+                          name="reportId"
+                          type="hidden"
+                          value={report.id}
+                        />
                         <Button size="sm" type="submit" variant="outline">
                           Resolve
                         </Button>
@@ -348,7 +352,7 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
                 </div>
               ))
             )}
-          </FramePanel>
+          </FramePanel> */}
         </div>
       </div>
     </main>

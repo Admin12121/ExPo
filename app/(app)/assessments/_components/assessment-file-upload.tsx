@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type AssessmentFileUploadProps = {
   accept?: string;
@@ -160,9 +161,9 @@ export function AssessmentFileDropzone(props: AssessmentFileUploadProps) {
   const error = props.error ?? errors[0];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 w-full">
       <div
-        className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
+        className={cn("flex min-h-50 cursor-pointer flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50", files.length >= maxFiles && "hidden")}
         data-dragging={isDragging || undefined}
         onClick={openFileDialog}
         onDragEnter={handleDragEnter}
@@ -188,18 +189,22 @@ export function AssessmentFileDropzone(props: AssessmentFileUploadProps) {
           <p className="mb-2 text-muted-foreground text-xs">
             Drag & drop or click to browse
           </p>
-          <div className="flex flex-wrap justify-center gap-1 text-muted-foreground/70 text-xs">
-            <span>All files</span>
-            <span>∙</span>
-            <span>Max {maxFiles} files</span>
-            <span>∙</span>
-            <span>Up to {formatBytes(props.maxSize)}</span>
-          </div>
         </div>
       </div>
 
+      <div className="flex flex-wrap justify-center gap-1 text-muted-foreground/70 text-xs">
+        <span>All files</span>
+        <span>∙</span>
+        <span>Max {maxFiles} files</span>
+        <span>∙</span>
+        <span>Up to {formatBytes(props.maxSize)}</span>
+      </div>
+
       {error ? (
-        <div className="flex items-center gap-1 text-destructive text-xs" role="alert">
+        <div
+          className="flex items-center gap-1 text-destructive text-xs"
+          role="alert"
+        >
           <AlertCircleIcon className="size-3 shrink-0" />
           <span>{error}</span>
         </div>
@@ -244,26 +249,17 @@ export function AssessmentFileDropzone(props: AssessmentFileUploadProps) {
           })}
 
           {files.length > 1 ? (
-            <Button onClick={clearFiles} size="sm" type="button" variant="outline">
+            <Button
+              onClick={clearFiles}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
               Remove all files
             </Button>
           ) : null}
         </div>
       ) : null}
-
-      <p
-        aria-live="polite"
-        className="mt-2 text-center text-muted-foreground text-xs"
-        role="region"
-      >
-        Multiple files uploader w/ list ∙{" "}
-        <a
-          className="underline hover:text-foreground"
-          href="https://github.com/cosscom/coss/blob/main/apps/origin/docs/use-file-upload.md"
-        >
-          API
-        </a>
-      </p>
     </div>
   );
 }
@@ -311,7 +307,12 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
           <p className="text-muted-foreground text-xs">
             Max {maxFiles} files ∙ Up to {formatBytes(props.maxSize)}
           </p>
-          <Button className="mt-4" onClick={openFileDialog} type="button" variant="outline">
+          <Button
+            className="mt-4"
+            onClick={openFileDialog}
+            type="button"
+            variant="outline"
+          >
             <UploadIcon aria-hidden="true" className="-ms-1 opacity-60" />
             Select files
           </Button>
@@ -323,14 +324,24 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-medium text-sm">Files ({files.length})</h3>
             <div className="flex gap-2">
-              <Button onClick={openFileDialog} size="sm" type="button" variant="outline">
+              <Button
+                onClick={openFileDialog}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
                 <UploadCloudIcon
                   aria-hidden="true"
                   className="-ms-0.5 size-3.5 opacity-60"
                 />
                 Add files
               </Button>
-              <Button onClick={clearFiles} size="sm" type="button" variant="outline">
+              <Button
+                onClick={clearFiles}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
                 <Trash2Icon
                   aria-hidden="true"
                   className="-ms-0.5 size-3.5 opacity-60"
@@ -401,7 +412,10 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
       ) : null}
 
       {error ? (
-        <div className="flex items-center gap-1 text-destructive text-xs" role="alert">
+        <div
+          className="flex items-center gap-1 text-destructive text-xs"
+          role="alert"
+        >
           <AlertCircleIcon className="size-3 shrink-0" />
           <span>{error}</span>
         </div>

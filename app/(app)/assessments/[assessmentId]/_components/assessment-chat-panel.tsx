@@ -133,10 +133,10 @@ export function AssessmentChatPanel({
     <div className="flex min-h-[30rem] flex-col gap-3">
       <div
         ref={scrollerRef}
-        className="min-h-0 flex-1 space-y-6 overflow-y-auto rounded-xl border bg-background p-4"
+        className="min-h-0 flex-1 space-y-6 overflow-y-auto rounded-xl bg-background p-4"
       >
         {messages.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground text-sm">
+          <div className="py-12 text-center text-muted-foreground text-sm h-full">
             No messages yet.
           </div>
         ) : null}
@@ -149,9 +149,11 @@ export function AssessmentChatPanel({
               key={message.id}
             >
               <Avatar className="size-8">
-                <AvatarFallback>{initials(message.displayName) || "A"}</AvatarFallback>
+                <AvatarFallback>
+                  {initials(message.displayName) || "A"}
+                </AvatarFallback>
               </Avatar>
-              <div className={cn("min-w-0 max-w-2xl", own && "text-right")}> 
+              <div className={cn("min-w-0 max-w-2xl", own && "text-right")}>
                 <div
                   className={cn(
                     "mb-1 flex items-center gap-2 text-muted-foreground text-xs",
@@ -172,7 +174,7 @@ export function AssessmentChatPanel({
         })}
       </div>
 
-      <div className="rounded-xl border bg-background p-3">
+      <div className="rounded-xl bg-background p-3 gap-2 flex">
         <Textarea
           className="min-h-24 border-0 bg-transparent shadow-none"
           disabled={!canPost || pending}
@@ -186,16 +188,15 @@ export function AssessmentChatPanel({
           placeholder={canPost ? "Write a message..." : "Chat is closed"}
           value={text}
         />
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <div className="text-destructive-foreground text-xs">{error}</div>
+        <div className="mt-2 flex items-end justify-between gap-2">
           <Button
             disabled={!canPost || pending || text.trim().length === 0}
             loading={pending}
             onClick={() => void sendMessage()}
             type="button"
+            size={"icon"}
           >
             <SendHorizonalIcon />
-            Send
           </Button>
         </div>
       </div>

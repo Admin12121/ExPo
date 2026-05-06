@@ -8,6 +8,8 @@ import {
   LayoutGrid,
   SearchIcon,
   TableProperties,
+  Trash,
+  Trash2,
   XIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -53,6 +55,7 @@ import type { AssessmentSummary } from "@/lib/server/assessments";
 
 import { TablePagination, useTablePagination } from "../../_components";
 import { cancelAssessmentAction, claimAssessmentAction } from "../actions";
+import { cn } from "@/lib/utils";
 
 const status = [
   { label: "All", value: "all" },
@@ -103,7 +106,10 @@ function statusVariant(status: string) {
   return "default";
 }
 
-function matchesStatus(item: AssessmentSummary, filter: AssessmentStatusFilter) {
+function matchesStatus(
+  item: AssessmentSummary,
+  filter: AssessmentStatusFilter,
+) {
   if (filter === "all") {
     return true;
   }
@@ -134,66 +140,6 @@ function matchesSearch(item: AssessmentSummary, query: string) {
   return searchable.includes(query);
 }
 
-function AssessmentActions({
-  item,
-  role,
-  userId,
-  className,
-}: {
-  item: AssessmentSummary;
-  role: string;
-  userId: string;
-  className?: string;
-}) {
-  const canClaim =
-    (role === "writer" || role === "admin") && item.status === "open";
-  const canCancel =
-    (role === "admin" || item.userId === userId) && item.status === "open";
-
-  return (
-    <div className={`flex justify-end ${className}`}>
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button
-              aria-label={`Actions for ${item.title}`}
-              size="icon-sm"
-              variant="ghost"
-            >
-              <EllipsisIcon />
-            </Button>
-          }
-        />
-        <MenuPopup align="end">
-          <MenuItem render={<Link href={`/assessments/${item.id}`} />}>
-            <EyeIcon />
-            Open
-          </MenuItem>
-          {canClaim || canCancel ? <MenuSeparator /> : null}
-          {canClaim ? (
-            <form action={claimAssessmentAction}>
-              <input name="assessmentId" type="hidden" value={item.id} />
-              <MenuItem render={<button type="submit" />}>
-                <HandIcon />
-                Claim
-              </MenuItem>
-            </form>
-          ) : null}
-          {canCancel ? (
-            <form action={cancelAssessmentAction}>
-              <input name="assessmentId" type="hidden" value={item.id} />
-              <MenuItem render={<button type="submit" />} variant="destructive">
-                <XIcon />
-                Cancel
-              </MenuItem>
-            </form>
-          ) : null}
-        </MenuPopup>
-      </Menu>
-    </div>
-  );
-}
-
 function AssessmentCard({
   item,
   role,
@@ -203,34 +149,54 @@ function AssessmentCard({
   role: string;
   userId: string;
 }) {
+  const canClaim =
+    (role === "writer" || role === "admin") && item.status === "open";
+  const canCancel =
+    (role === "admin" || item.userId === userId) && item.status === "open";
   return (
     <div className="relative flex min-w-0">
-      <CardFrame className="w-full after:pointer-events-none after:absolute after:-inset-[5px] after:-z-1 after:rounded-[calc(var(--radius-xl)+4px)] after:border after:border-border/64 dark:bg-background">
-        <Card className="min-h-50 flex-1 flex-col flex-wrap overflow-x-auto dark:bg-background">
-          <CardPanel className="flex flex-1 items-center justify-center lg:px-8 lg:py-12 relative">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="line-clamp-3 text-sm text-muted-foreground">
-                  {item.description}
-                </p>
+      <CardFrame
+        className={cn(
+          "w-full after:pointer-events-none after:absolute after:-inset-[5px] after:rounded-[calc(var(--radius-xl)+8px)] after:border after:border-border/64 dark:bg-background",
+          statusLabel(item.status),
+        )}
+      >
+        <Link href={`/assessments/${item.id}`}>
+          <Card className="min-h-75 flex-1 flex-col flex-wrap overflow-x-auto dark:bg-background">
+            <CardPanel className="flex flex-1 items-center justify-center lg:px-8 lg:py-12 relative">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="line-clamp-3 text-sm text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
               </div>
-            </div>
-            <AssessmentActions
-              item={item}
-              role={role}
-              userId={userId}
-              className="absolute top-2 right-2"
-            />
-          </CardPanel>{" "}
-        </Card>
+            </CardPanel>{" "}
+          </Card>
+        </Link>
         <CardFrameFooter className="flex items-center gap-3 p-2">
           <p className="flex flex-1 gap-1 truncate text-muted-foreground text-xs flex-col">
             <span className="truncate">{item.title}</span>
             <span className="truncate">{item.topic}</span>
           </p>
-          <Badge variant={statusVariant(item.status)}>
-            {statusLabel(item.status)}
-          </Badge>
+          {canClaim ? (
+            <Button
+              onClick={() => claimAssessmentAction({ assessmentId: item.id })}
+              size="icon-sm"
+              variant="outline"
+            >
+              <HandIcon />
+            </Button>
+          ) : null}
+          {canCancel ? (
+            <Button
+              onClick={() => cancelAssessmentAction({ assessmentId: item.id })}
+              variant="destructive-outline"
+            >
+              <XIcon />
+              Cancel
+            </Button>
+          ) : null}
         </CardFrameFooter>
       </CardFrame>
     </div>
@@ -259,30 +225,58 @@ function AssessmentTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                <Link href={`/assessments/${item.id}`} className="min-w-0">
-                  <div className="truncate font-medium">{item.title}</div>
-                  <div className="truncate text-muted-foreground text-xs">
-                    {item.topic}
-                  </div>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Badge variant={statusVariant(item.status)}>
-                  {statusLabel(item.status)}
-                </Badge>
-              </TableCell>
-              <TableCell>{formatDate(item.deadlineAt)}</TableCell>
-              <TableCell>
-                {formatMoney(item.priceCents, item.currency)}
-              </TableCell>
-              <TableCell>
-                <AssessmentActions item={item} role={role} userId={userId} />
-              </TableCell>
-            </TableRow>
-          ))}
+          {items.map((item) => {
+            const canClaim =
+              (role === "writer" || role === "admin") && item.status === "open";
+            const canCancel =
+              (role === "admin" || item.userId === userId) &&
+              item.status === "open";
+            return (
+              <TableRow key={item.id}>
+                <TableCell>
+                  <Link href={`/assessments/${item.id}`} className="min-w-0">
+                    <div className="truncate font-medium">{item.title}</div>
+                    <div className="truncate text-muted-foreground text-xs">
+                      {item.topic}
+                    </div>
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={statusVariant(item.status)}>
+                    {statusLabel(item.status)}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatDate(item.deadlineAt)}</TableCell>
+                <TableCell>
+                  {formatMoney(item.priceCents, item.currency)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {canClaim ? (
+                    <Button
+                      onClick={() =>
+                        claimAssessmentAction({ assessmentId: item.id })
+                      }
+                      size="icon-sm"
+                      variant="outline"
+                    >
+                      <HandIcon />
+                    </Button>
+                  ) : null}
+                  {canCancel ? (
+                    <Button
+                      onClick={() =>
+                        cancelAssessmentAction({ assessmentId: item.id })
+                      }
+                      variant="destructive-outline"
+                      size={"icon-sm"}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  ) : null}
+                </TableCell>
+              </TableRow>
+            );
+          })}
           {items.length === 0 ? (
             <TableRow>
               <TableCell
@@ -360,11 +354,16 @@ export function AssessmentResults({
         </div>
       </div>
       <TabsContent
-        className="grid flex-1 items-stretch gap-9 pb-12 lg:grid-cols-2 lg:gap-6 xl:gap-9"
+        className="grid flex-1 items-stretch gap-9 pb-12 lg:grid-cols-4 lg:gap-6"
         value="cards"
       >
         {items.map((item) => (
-          <AssessmentCard item={item} key={item.id} role={role} userId={userId} />
+          <AssessmentCard
+            item={item}
+            key={item.id}
+            role={role}
+            userId={userId}
+          />
         ))}
         {items.length === 0 ? (
           <FramePanel className="p-8 text-center text-muted-foreground text-sm md:col-span-2 xl:col-span-3">

@@ -32,12 +32,15 @@ import {
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverPopup,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Frame,
+  FrameFooter,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/ui/frame";
 
 const MAX_FILES = 3;
 const SOURCE_MAX_SIZE = 30 * 1024 * 1024;
@@ -172,125 +175,123 @@ export default function NewAssessmentDialog() {
         }
       />
       <DialogPopup>
-        <DialogHeader>
-          <DialogTitle>Create new assessment</DialogTitle>
-          <DialogDescription>
-            Upload the source file and assessment details.
-          </DialogDescription>
-        </DialogHeader>
-        <Form className="contents" onSubmit={handleSubmit(submit)}>
-          <DialogPanel className="grid gap-5">
-            <Fieldset className="grid gap-4">
-              <FieldsetLegend>Assessment details</FieldsetLegend>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="assessment-title">Country</FieldLabel>
-                  <Input
-                    id="assessment-title"
-                    nativeInput
-                    {...register("title")}
-                  />
-                  {errors.title ? (
-                    <FieldError>{errors.title.message}</FieldError>
-                  ) : null}
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="assessment-topic">Topic</FieldLabel>
-                  <Input
-                    id="assessment-topic"
-                    nativeInput
-                    {...register("topic")}
-                  />
-                  {errors.topic ? (
-                    <FieldError>{errors.topic.message}</FieldError>
-                  ) : null}
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="assessment-price">Price</FieldLabel>
-                  <Input
-                    id="assessment-price"
-                    min="0"
-                    nativeInput
-                    step="0.01"
-                    type="number"
-                    {...register("price")}
-                  />
-                  {errors.price ? (
-                    <FieldError>{errors.price.message}</FieldError>
-                  ) : null}
-                </Field>
-                <Field>
-                  <FieldLabel>Deadline</FieldLabel>
-                  <Popover>
-                    <PopoverTrigger
-                      render={
-                        <Button
-                          className="w-full justify-start"
-                          type="button"
-                          variant="outline"
+        <Frame>
+          <FrameHeader>
+            <FrameTitle>Create new assessment</FrameTitle>
+          </FrameHeader>
+          <Form className="contents" onSubmit={handleSubmit(submit)}>
+            <FramePanel className="grid gap-5">
+              <Fieldset className="grid gap-4">
+                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="assessment-title">Country</FieldLabel>
+                    <Input
+                      id="assessment-title"
+                      nativeInput
+                      {...register("title")}
+                    />
+                    {errors.title ? (
+                      <FieldError>{errors.title.message}</FieldError>
+                    ) : null}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="assessment-topic">Topic</FieldLabel>
+                    <Input
+                      id="assessment-topic"
+                      nativeInput
+                      {...register("topic")}
+                    />
+                    {errors.topic ? (
+                      <FieldError>{errors.topic.message}</FieldError>
+                    ) : null}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="assessment-price">Price</FieldLabel>
+                    <Input
+                      id="assessment-price"
+                      min="0"
+                      nativeInput
+                      step="0.01"
+                      type="number"
+                      {...register("price")}
+                    />
+                    {errors.price ? (
+                      <FieldError>{errors.price.message}</FieldError>
+                    ) : null}
+                  </Field>
+                  <Field>
+                    <FieldLabel>Deadline</FieldLabel>
+                    <Popover>
+                      <PopoverTrigger
+                        render={
+                          <Button
+                            className="w-full justify-start"
+                            type="button"
+                            variant="outline"
+                          />
+                        }
+                      >
+                        <CalendarIcon aria-hidden="true" />
+                        {selectedDeadline
+                          ? format(selectedDeadline, "PPP")
+                          : "Pick a date"}
+                      </PopoverTrigger>
+                      <PopoverPopup>
+                        <Calendar
+                          defaultMonth={selectedDeadline}
+                          mode="single"
+                          onSelect={handleDeadlineSelect}
+                          selected={selectedDeadline}
                         />
-                      }
-                    >
-                      <CalendarIcon aria-hidden="true" />
-                      {selectedDeadline
-                        ? format(selectedDeadline, "PPP")
-                        : "Pick a date"}
-                    </PopoverTrigger>
-                    <PopoverPopup>
-                      <Calendar
-                        defaultMonth={selectedDeadline}
-                        mode="single"
-                        onSelect={handleDeadlineSelect}
-                        selected={selectedDeadline}
-                      />
-                    </PopoverPopup>
-                  </Popover>
-                </Field>
-              </FieldGroup>
-            </Fieldset>
+                      </PopoverPopup>
+                    </Popover>
+                  </Field>
+                </FieldGroup>
+              </Fieldset>
 
-            <Field>
-              <FieldLabel htmlFor="assessment-description">
-                Description
-              </FieldLabel>
-              <Textarea
-                id="assessment-description"
-                {...register("description")}
-              />
-              <FieldDescription>
-                Include scope, requirements, and delivery notes.
-              </FieldDescription>
-              {errors.description ? (
-                <FieldError>{errors.description.message}</FieldError>
+              <Field>
+                <FieldLabel htmlFor="assessment-description">
+                  Description
+                </FieldLabel>
+                <Textarea
+                  id="assessment-description"
+                  {...register("description")}
+                />
+                <FieldDescription>
+                  Include scope, requirements, and delivery notes.
+                </FieldDescription>
+                {errors.description ? (
+                  <FieldError>{errors.description.message}</FieldError>
+                ) : null}
+              </Field>
+
+              <Field>
+                <FieldLabel>Assessment Files</FieldLabel>
+                <AssessmentFileDropzone
+                  error={errors.files?.message}
+                  maxFiles={MAX_FILES}
+                  maxSize={SOURCE_MAX_SIZE}
+                  onFilesChange={handleFilesChange}
+                />
+              </Field>
+
+              {errors.root?.message ? (
+                <p className="text-destructive-foreground text-xs" role="alert">
+                  {errors.root.message}
+                </p>
               ) : null}
-            </Field>
+            </FramePanel>
 
-            <Field>
-              <FieldLabel>Source file</FieldLabel>
-              <AssessmentFileDropzone
-                error={errors.files?.message}
-                maxFiles={MAX_FILES}
-                maxSize={SOURCE_MAX_SIZE}
-                onFilesChange={handleFilesChange}
-              />
-            </Field>
-
-            {errors.root?.message ? (
-              <p className="text-destructive-foreground text-xs" role="alert">
-                {errors.root.message}
-              </p>
-            ) : null}
-          </DialogPanel>
-
-          <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline" />}>
-              Cancel
-            </DialogClose>
-            <Button loading={isSubmitting} type="submit">
-              Upload assessment
-            </Button>
-          </DialogFooter>
-        </Form>
+            <FrameFooter className="flex items-center justify-end gap-2 p-2">
+              <DialogClose render={<Button type="button" variant="outline" />}>
+                Cancel
+              </DialogClose>
+              <Button loading={isSubmitting} type="submit">
+                Upload assessment
+              </Button>
+            </FrameFooter>
+          </Form>
+        </Frame>
       </DialogPopup>
     </Dialog>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FilePlusIcon } from "lucide-react";
+import { format } from "date-fns";
+import { CalendarIcon, FilePlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -31,6 +32,11 @@ import {
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverPopup,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 
 const MAX_FILES = 3;
@@ -215,11 +221,30 @@ export default function NewAssessmentDialog() {
                 </Field>
                 <Field>
                   <FieldLabel>Deadline</FieldLabel>
-                  <Calendar
-                    mode="single"
-                    onSelect={handleDeadlineSelect}
-                    selected={selectedDeadline}
-                  />
+                  <Popover>
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          className="w-full justify-start"
+                          type="button"
+                          variant="outline"
+                        />
+                      }
+                    >
+                      <CalendarIcon aria-hidden="true" />
+                      {selectedDeadline
+                        ? format(selectedDeadline, "PPP")
+                        : "Pick a date"}
+                    </PopoverTrigger>
+                    <PopoverPopup>
+                      <Calendar
+                        defaultMonth={selectedDeadline}
+                        mode="single"
+                        onSelect={handleDeadlineSelect}
+                        selected={selectedDeadline}
+                      />
+                    </PopoverPopup>
+                  </Popover>
                 </Field>
               </FieldGroup>
             </Fieldset>

@@ -1,1 +1,3 @@
-export * from "../[assessmentId]/_components/assessment-chat-panel";
+
+export * from "./assessment-file-upload";
+export * from "./new-assessment-dialog";

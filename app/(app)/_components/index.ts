@@ -3,3 +3,4 @@ export * from "./nav-document";
 export * from "./nav-secondary";
 export * from "./nav-user";
 export * from "./site-header";
+export * from "./pagination";

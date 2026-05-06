@@ -1,22 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileCheckIcon, UploadIcon } from "lucide-react";
+import { UploadIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { AssessmentFileTableUpload } from "../../_components/assessment-file-upload";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
-import {
-  Frame,
-  FrameHeader,
-  FramePanel,
-  FrameTitle,
-} from "@/components/ui/frame";
 
 const MAX_FILES = 3;
 const COMPLETED_MAX_SIZE = 30 * 1024 * 1024;
@@ -49,17 +43,17 @@ const completedWorkSchema = z.object({
 type CompletedWorkFormValues = z.infer<typeof completedWorkSchema>;
 
 type CompletedWorkUploadFormProps = {
-  action: (formData: FormData) => Promise<void>;
   assessmentId: string;
 };
 
 export function CompletedWorkUploadForm({
-  action,
   assessmentId,
 }: CompletedWorkUploadFormProps) {
   const router = useRouter();
   const {
-    formState: { errors, isSubmitting },
+    clearErrors,
+    formState: { errors, isSubmitted, isSubmitting },
+    control,
     handleSubmit,
     setError,
     setValue,
@@ -69,15 +63,21 @@ export function CompletedWorkUploadForm({
     },
     resolver: zodResolver(completedWorkSchema),
   });
+  const selectedFiles = useWatch({ control, name: "files" });
+  const hasFiles = selectedFiles.length > 0;
 
   const handleFilesChange = useCallback(
     (files: File[]) => {
       setValue("files", files, {
-        shouldDirty: true,
-        shouldValidate: true,
+        shouldDirty: files.length > 0,
+        shouldValidate: isSubmitted || files.length > 0,
       });
+
+      if (!isSubmitted && files.length === 0) {
+        clearErrors("files");
+      }
     },
-    [setValue],
+    [clearErrors, isSubmitted, setValue],
   );
 
   async function submit(values: CompletedWorkFormValues) {
@@ -92,28 +92,26 @@ export function CompletedWorkUploadForm({
       formData.append("file", file);
     }
 
-    try {
-      await action(formData);
-      router.refresh();
-    } catch (error) {
+    const response = await fetch(`/api/assessments/${assessmentId}/complete`, {
+      body: formData,
+      method: "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      error?: string;
+      ok?: boolean;
+    } | null;
+
+    if (!response.ok || !payload?.ok) {
       setError("root", {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to upload completed file.",
+        message: payload?.error ?? "Unable to upload completed file.",
       });
+      return;
     }
+
+    router.refresh();
   }
 
   return (
-    // <Frame>
-    //   <FrameHeader className="p-2">
-    //     <FrameTitle className="flex gap-2">
-    //       <FileCheckIcon className="size-4 text-muted-foreground" />
-    //       Complete work
-    //     </FrameTitle>
-    //   </FrameHeader>
-    //   <FramePanel>
     <Form className="grid gap-3" onSubmit={handleSubmit(submit)}>
       <Field className={"items-center justify-center"}>
         <AssessmentFileTableUpload
@@ -125,12 +123,16 @@ export function CompletedWorkUploadForm({
         />
       </Field>
       {errors.root?.message ? (
-        <p className="text-destructive-foreground text-xs" role="alert">
+        <p className="text-destructive text-xs" role="alert">
           {errors.root.message}
         </p>
       ) : null}
+      <div className="flex justify-end">
+        <Button disabled={!hasFiles} loading={isSubmitting} type="submit">
+          <UploadIcon aria-hidden="true" className="-ms-1 opacity-60" />
+          Upload completed work
+        </Button>
+      </div>
     </Form>
-    //   </FramePanel>
-    // </Frame>
   );
 }

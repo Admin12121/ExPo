@@ -14,9 +14,6 @@ import { getAssessmentMessages } from "@/lib/server/assessment-chat";
 import { getAssessmentDetail } from "@/lib/server/assessments";
 
 import { AssessmentChatPanel } from "./_components/assessment-chat-panel";
-import {
-  completeAssessmentAction,
-} from "../actions";
 import { CompletedWorkUploadForm } from "./_components/completed-work-upload-form";
 import {
   Table,
@@ -165,10 +162,7 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
           </Frame>
 
           {canComplete ? (
-            <CompletedWorkUploadForm
-              action={completeAssessmentAction}
-              assessmentId={assessment.id}
-            />
+            <CompletedWorkUploadForm assessmentId={assessment.id} />
           ) : null}
         </div>
 

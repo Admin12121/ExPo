@@ -11,10 +11,15 @@ import {
 } from "@/components/ui/frame";
 import { requireSession } from "@/lib/auth/session";
 import { getAssessmentMessages } from "@/lib/server/assessment-chat";
-import { getAssessmentDetail } from "@/lib/server/assessments";
+import {
+  getAssessmentDetail,
+  type AssessmentDetail,
+} from "@/lib/server/assessments";
 
 import { AssessmentChatPanel } from "./_components/assessment-chat-panel";
 import { CompletedWorkUploadForm } from "./_components/completed-work-upload-form";
+import { PaymentProofDialog } from "./_components/payment-proof-dialog";
+import { PaymentVerificationDialog } from "./_components/payment-verification-dialog";
 import {
   Table,
   TableBody,
@@ -29,6 +34,8 @@ type PageProps = {
     assessmentId: string;
   }>;
 };
+
+type AssessmentFileItem = AssessmentDetail["files"][number];
 
 function formatDate(value: Date | null) {
   if (!value) {
@@ -48,6 +55,10 @@ function formatMoney(cents: number, currency: string) {
   }).format(cents / 100);
 }
 
+function formatFileSize(bytes: number) {
+  return `${Math.ceil(bytes / 1024)}KB`;
+}
+
 function isChatOpen(status: string) {
   return [
     "in_progress",
@@ -56,6 +67,59 @@ function isChatOpen(status: string) {
     "payment_submitted",
     "payment_verified",
   ].includes(status);
+}
+
+function AssessmentFilesTable({
+  assessmentId,
+  emptyLabel,
+  files,
+}: {
+  assessmentId: string;
+  emptyLabel: string;
+  files: AssessmentFileItem[];
+}) {
+  return (
+    <Frame>
+      <Table variant="card">
+        <TableHeader>
+          <TableRow>
+            <TableHead>File Name</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead className="text-right">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {files.length === 0 ? (
+            <TableRow className="text-muted-foreground text-sm">
+              <TableCell className="text-center" colSpan={3}>
+                {emptyLabel}
+              </TableCell>
+            </TableRow>
+          ) : (
+            files.map((file) => (
+              <TableRow key={file.id}>
+                <TableCell className="font-medium">
+                  {file.originalName}
+                </TableCell>
+                <TableCell>{formatFileSize(file.sizeBytes)}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    render={
+                      <a href={`/api/assessments/${assessmentId}/files/${file.id}`} />
+                    }
+                    size="icon-sm"
+                    variant="secondary"
+                  >
+                    <DownloadIcon />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </Frame>
+  );
 }
 
 export default async function AssessmentDetailPage({ params }: PageProps) {
@@ -68,26 +132,74 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
   }
 
   const { assessment, files } = detail;
+  const sourceFiles = files.filter((file) => file.kind === "source");
+  const completedFiles = files.filter((file) => file.kind === "completed");
+  const paymentProofFiles = files.filter((file) => file.kind === "payment_proof");
+  const completedUploadFiles = completedFiles.map((file) => ({
+    id: file.id,
+    name: file.originalName,
+    size: file.sizeBytes,
+    type: file.mimeType,
+    url: `/api/assessments/${assessment.id}/files/${file.id}`,
+  }));
+  const paymentProofPreviewFiles = paymentProofFiles
+    .filter((file) => file.mimeType.startsWith("image/"))
+    .map((file) => ({
+      id: file.id,
+      name: file.originalName,
+      type: file.mimeType,
+      url: `/api/assessments/${assessment.id}/files/${file.id}?preview=1`,
+    }));
   const messages = await getAssessmentMessages(assessment.id);
   const role = session.user.role ?? "user";
+  const isOwner = assessment.userId === session.user.id;
   const isWriter = assessment.writerId === session.user.id;
   const isAdmin = role === "admin";
-  const canComplete =
+  const canManageCompletedFiles =
     (isWriter || isAdmin) &&
-    ["in_progress", "close_requested"].includes(assessment.status);
+    [
+      "in_progress",
+      "close_requested",
+      "completed_pending_payment",
+      "payment_submitted",
+    ].includes(assessment.status);
+  const canViewCompletedUploader =
+    isWriter || isAdmin
+      ? canManageCompletedFiles || completedUploadFiles.length > 0
+      : false;
+  const canSubmitPaymentProof =
+    isOwner &&
+    completedFiles.length > 0 &&
+    ["completed_pending_payment", "payment_submitted"].includes(
+      assessment.status,
+    );
+  const canDownloadCompletedFiles =
+    isOwner &&
+    completedFiles.length > 0 &&
+    ["payment_verified", "downloaded", "archived"].includes(assessment.status);
+  const canVerifyPayment =
+    (isWriter || isAdmin) && assessment.status === "payment_submitted";
 
   return (
     <main className="grid gap-4 p-4">
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="grid content-start gap-4">
           <Frame>
-            <FrameHeader className="p-2">
-              <FrameTitle className="truncate text-lg font-semibold">
-                {assessment.topic}
-              </FrameTitle>
-              <FrameDescription className="text-muted-foreground text-sm">
-                {assessment.title}
-              </FrameDescription>
+            <FrameHeader className="relative p-2 pr-12">
+              <div className="min-w-0">
+                <FrameTitle className="truncate text-lg font-semibold">
+                  {assessment.topic}
+                </FrameTitle>
+                <FrameDescription className="text-muted-foreground text-sm">
+                  {assessment.title}
+                </FrameDescription>
+              </div>
+              {canVerifyPayment ? (
+                <PaymentVerificationDialog
+                  assessmentId={assessment.id}
+                  paymentProofFiles={paymentProofPreviewFiles}
+                />
+              ) : null}
             </FrameHeader>
             <FramePanel className="grid gap-4">
               <div className="grid gap-3 md:grid-cols-3">
@@ -116,53 +228,34 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
             </FramePanel>
           </Frame>
 
-          <Frame>
-            <Table variant="card">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>File Name</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {files.length === 0 ? (
-                  <TableRow className="text-muted-foreground text-sm">
-                    <TableCell colSpan={3} className="text-center">
-                      No files.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  files.map((file) => (
-                    <TableRow key={file.id}>
-                      <TableCell className="font-medium">
-                        {file.originalName}
-                      </TableCell>
-                      <TableCell>
-                        {Math.ceil(file.sizeBytes / 1024)}KB
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          render={
-                            <a
-                              href={`/api/assessments/${assessment.id}/files/${file.id}`}
-                            />
-                          }
-                          size="icon-sm"
-                          variant="secondary"
-                        >
-                          <DownloadIcon />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </Frame>
+          <AssessmentFilesTable
+            assessmentId={assessment.id}
+            emptyLabel="No source files."
+            files={sourceFiles}
+          />
 
-          {canComplete ? (
-            <CompletedWorkUploadForm assessmentId={assessment.id} />
+          {canViewCompletedUploader ? (
+            <CompletedWorkUploadForm
+              assessmentId={assessment.id}
+              canManageFiles={canManageCompletedFiles}
+              initialFiles={completedUploadFiles}
+              key={completedUploadFiles.map((file) => file.id).join(":")}
+            />
+          ) : null}
+
+          {canSubmitPaymentProof ? (
+            <PaymentProofDialog
+              assessmentId={assessment.id}
+              status={assessment.status}
+            />
+          ) : null}
+
+          {canDownloadCompletedFiles ? (
+            <AssessmentFilesTable
+              assessmentId={assessment.id}
+              emptyLabel="No completed files."
+              files={completedFiles}
+            />
           ) : null}
         </div>
 

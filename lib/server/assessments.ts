@@ -49,6 +49,12 @@ const mutableStatuses = [
 ] satisfies AssessmentStatus[];
 
 const maxAssessmentFiles = 3;
+const completedFileMutableStatuses = [
+  "in_progress",
+  "close_requested",
+  "completed_pending_payment",
+  "payment_submitted",
+] satisfies AssessmentStatus[];
 
 function asRole(value: string | null | undefined): UserRole {
   if (value === "admin" || value === "writer" || value === "user") {
@@ -654,11 +660,31 @@ export async function completeAssessmentFromForm(
     throw new Error("Only the assigned writer can complete this assessment.");
   }
 
-  if (row.status !== "in_progress" && row.status !== "close_requested") {
+  if (
+    !completedFileMutableStatuses.includes(
+      row.status as (typeof completedFileMutableStatuses)[number],
+    )
+  ) {
     throw new Error("This assessment cannot be completed from its current state.");
   }
 
   assertFileCount(files, "Completed");
+
+  const existingCompletedFiles = await db
+    .select({ id: assessmentFiles.id })
+    .from(assessmentFiles)
+    .where(
+      and(
+        eq(assessmentFiles.assessmentId, assessmentId),
+        eq(assessmentFiles.kind, "completed"),
+        eq(assessmentFiles.scanStatus, "clean"),
+        isNull(assessmentFiles.deletedAt),
+      ),
+    );
+
+  if (existingCompletedFiles.length + files.length > maxAssessmentFiles) {
+    throw new Error(`Upload up to ${maxAssessmentFiles} files.`);
+  }
 
   const insertedFiles: Awaited<ReturnType<typeof insertAssessmentFile>>[] = [];
   try {
@@ -683,24 +709,112 @@ export async function completeAssessmentFromForm(
     .update(assessments)
     .set({
       completedAt: new Date(),
-      status: "completed_pending_payment",
+      status:
+        row.status === "payment_submitted"
+          ? "payment_submitted"
+          : "completed_pending_payment",
       updatedAt: new Date(),
     })
     .where(eq(assessments.id, assessmentId));
 
-  await Promise.all([
-    insertNotification({
+  if (row.status !== "completed_pending_payment") {
+    await Promise.all([
+      insertNotification({
+        assessmentId,
+        body: "Your completed assessment is waiting for payment confirmation.",
+        title: "Assessment completed",
+        userId: row.userId,
+      }),
+      emitAssessmentStatus({
+        assessmentId,
+        status: "completed_pending_payment",
+        title: row.title,
+      }),
+    ]);
+  }
+}
+
+export async function removeCompletedAssessmentFile(
+  user: AppSessionUser,
+  assessmentId: string,
+  fileId: string,
+) {
+  assertRole(user, ["admin", "writer"]);
+
+  const row = await getAssessmentRow(assessmentId);
+  if (!row || (row.writerId !== user.id && asRole(user.role) !== "admin")) {
+    throw new Error("Only the assigned writer can remove completed files.");
+  }
+
+  if (
+    !completedFileMutableStatuses.includes(
+      row.status as (typeof completedFileMutableStatuses)[number],
+    )
+  ) {
+    throw new Error("Completed files can no longer be removed.");
+  }
+
+  const [file] = await db
+    .select()
+    .from(assessmentFiles)
+    .where(
+      and(
+        eq(assessmentFiles.id, fileId),
+        eq(assessmentFiles.assessmentId, assessmentId),
+        eq(assessmentFiles.kind, "completed"),
+        eq(assessmentFiles.scanStatus, "clean"),
+        isNull(assessmentFiles.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!file) {
+    throw new Error("Completed file not found.");
+  }
+
+  await removePrivateAssessmentFile(file.storageKey);
+  await db
+    .update(assessmentFiles)
+    .set({
+      deletedAt: new Date(),
+      scanStatus: "deleted",
+    })
+    .where(eq(assessmentFiles.id, fileId));
+
+  const remainingCompletedFiles = await db
+    .select({ id: assessmentFiles.id })
+    .from(assessmentFiles)
+    .where(
+      and(
+        eq(assessmentFiles.assessmentId, assessmentId),
+        eq(assessmentFiles.kind, "completed"),
+        eq(assessmentFiles.scanStatus, "clean"),
+        isNull(assessmentFiles.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (
+    (row.status === "completed_pending_payment" ||
+      row.status === "payment_submitted") &&
+    remainingCompletedFiles.length === 0
+  ) {
+    await db
+      .update(assessments)
+      .set({
+        completedAt: null,
+        paymentSubmittedAt: null,
+        status: "in_progress",
+        updatedAt: new Date(),
+      })
+      .where(eq(assessments.id, assessmentId));
+
+    await emitAssessmentStatus({
       assessmentId,
-      body: "Your completed assessment is waiting for payment confirmation.",
-      title: "Assessment completed",
-      userId: row.userId,
-    }),
-    emitAssessmentStatus({
-      assessmentId,
-      status: "completed_pending_payment",
+      status: "in_progress",
       title: row.title,
-    }),
-  ]);
+    });
+  }
 }
 
 export async function submitPaymentProofFromForm(

@@ -19,6 +19,7 @@ import {
 import { useEffect } from "react";
 
 import {
+  type ExistingUploadFile,
   formatBytes,
   type UploadFileItem,
   useFileUpload,
@@ -37,10 +38,15 @@ import { Frame } from "@/components/ui/frame";
 
 type AssessmentFileUploadProps = {
   accept?: string;
+  disabled?: boolean;
   error?: string;
+  initialFiles?: ExistingUploadFile[];
   maxFiles?: number;
   maxSize: number;
+  onExistingFileRemove?: (file: ExistingUploadFile) => Promise<void> | void;
   onFilesChange: (files: File[]) => void;
+  readOnly?: boolean;
+  showDownloadAction?: boolean;
 };
 
 function getFileMeta(file: UploadFileItem) {
@@ -49,6 +55,12 @@ function getFileMeta(file: UploadFileItem) {
     size: file.file.size,
     type: file.file.type,
   };
+}
+
+function isExistingFile(
+  file: UploadFileItem["file"],
+): file is ExistingUploadFile {
+  return !(file instanceof File);
 }
 
 function getFileIcon(file: UploadFileItem) {
@@ -116,6 +128,7 @@ function formatAcceptedTypes(accept?: string) {
 
 function useAssessmentUpload({
   accept,
+  initialFiles,
   maxFiles = 1,
   maxSize,
   onFilesChange,
@@ -134,6 +147,7 @@ function useAssessmentUpload({
     },
   ] = useFileUpload({
     accept,
+    initialFiles,
     maxFiles,
     maxSize,
     multiple: maxFiles > 1,
@@ -286,6 +300,9 @@ export function AssessmentFileDropzone(props: AssessmentFileUploadProps) {
 
 export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
   const maxFiles = props.maxFiles ?? 1;
+  const canAddFiles = !props.readOnly && !props.disabled && maxFiles > 0;
+  const canRemoveFiles = !props.readOnly && !props.disabled;
+  const showDownloadAction = props.showDownloadAction ?? true;
   const {
     clearFiles,
     errors,
@@ -300,20 +317,42 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
     removeFile,
   } = useAssessmentUpload(props);
   const error = props.error ?? errors[0];
+  const canAddMoreFiles = canAddFiles && files.length < maxFiles;
+
+  async function handleRemoveFile(file: UploadFileItem) {
+    if (isExistingFile(file.file)) {
+      await props.onExistingFileRemove?.(file.file);
+    }
+
+    removeFile(file.id);
+  }
+
+  async function handleClearFiles() {
+    for (const file of [...files]) {
+      await handleRemoveFile(file);
+    }
+
+    if (files.every((file) => !isExistingFile(file.file))) {
+      clearFiles();
+    }
+  }
 
   return (
     <div className="flex flex-col gap-2 w-full">
       <div
-        className="flex min-h-56 flex-col items-center rounded-xl border border-input border-dashed p-4 transition-colors not-data-[files]:justify-center has-[input:focus]:border-ring has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[files]:hidden data-[dragging=true]:bg-accent/50"
+        className="flex min-h-56 flex-col items-center rounded-xl border border-input border-dashed p-4 transition-colors not-data-[files]:justify-center has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[files]:hidden data-[dragging=true]:bg-accent/50"
         data-dragging={isDragging || undefined}
         data-files={files.length > 0 || undefined}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
+        onDragEnter={canAddFiles ? handleDragEnter : undefined}
+        onDragLeave={canAddFiles ? handleDragLeave : undefined}
+        onDragOver={canAddFiles ? handleDragOver : undefined}
+        onDrop={canAddFiles ? handleDrop : undefined}
       >
         <input
-          {...getInputProps({ "aria-label": "Upload files" })}
+          {...getInputProps({
+            "aria-label": "Upload files",
+            disabled: !canAddFiles,
+          })}
           className="sr-only"
         />
         <div className="flex flex-col items-center justify-center text-center">
@@ -330,6 +369,7 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
           </p>
           <Button
             className="mt-4"
+            disabled={!canAddFiles}
             onClick={openFileDialog}
             type="button"
             variant="outline"
@@ -344,35 +384,43 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
         <>
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-medium text-sm">Files ({files.length})</h3>
-            <div className="flex gap-2">
-              <Button
-                onClick={openFileDialog}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <UploadCloudIcon
-                  aria-hidden="true"
-                  className="-ms-0.5 size-3.5 opacity-60"
-                />
-                Add files
-              </Button>
-              <Button
-                onClick={clearFiles}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Trash2Icon
-                  aria-hidden="true"
-                  className="-ms-0.5 size-3.5 opacity-60"
-                />
-                Remove all
-              </Button>
-            </div>
+            {canAddMoreFiles || canRemoveFiles ? (
+              <div className="flex gap-2">
+                {canAddMoreFiles ? (
+                  <Button
+                    onClick={openFileDialog}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <UploadCloudIcon
+                      aria-hidden="true"
+                      className="-ms-0.5 size-3.5 opacity-60"
+                    />
+                    Add files
+                  </Button>
+                ) : null}
+                {canRemoveFiles ? (
+                  <Button
+                    onClick={() =>
+                      void handleClearFiles().catch(() => undefined)
+                    }
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Trash2Icon
+                      aria-hidden="true"
+                      className="-ms-0.5 size-3.5 opacity-60"
+                    />
+                    Remove all
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <Frame>
-            <Table variant="card" >
+            <Table variant="card">
               <TableHeader className="text-xs">
                 <TableRow>
                   <TableHead className="h-9 py-2">Name</TableHead>
@@ -402,26 +450,34 @@ export function AssessmentFileTableUpload(props: AssessmentFileUploadProps) {
                         {formatBytes(meta.size)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap py-2 text-right">
-                        <Button
-                          aria-label={`Download ${meta.name}`}
-                          className="size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
-                          onClick={() => window.open(file.preview, "_blank")}
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <DownloadIcon className="size-4" />
-                        </Button>
-                        <Button
-                          aria-label={`Remove ${meta.name}`}
-                          className="size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
-                          onClick={() => removeFile(file.id)}
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Trash2Icon className="size-4" />
-                        </Button>
+                        {showDownloadAction ? (
+                          <Button
+                            aria-label={`Download ${meta.name}`}
+                            className="size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
+                            onClick={() => window.open(file.preview, "_blank")}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <DownloadIcon className="size-4" />
+                          </Button>
+                        ) : null}
+                        {canRemoveFiles ? (
+                          <Button
+                            aria-label={`Remove ${meta.name}`}
+                            className="size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
+                            onClick={() =>
+                              void handleRemoveFile(file).catch(
+                                () => undefined,
+                              )
+                            }
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Button>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   );

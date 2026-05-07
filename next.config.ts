@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        hostname: "www.jcpw.dev",
+        pathname: "/codepen/img/privacy-shield.svg",
+        protocol: "https",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

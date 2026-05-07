@@ -41,16 +41,11 @@ export default async function AssessmentsPage() {
       ) : null}
 
       {isUser ? (
-        <div className="grid gap-3">
-          <div className="text-muted-foreground text-sm">
-            Showing latest {workspace.items.length}
-          </div>
-          <UserAssessmentTable
-            items={workspace.items}
-            role={role}
-            userId={userId}
-          />
-        </div>
+        <UserAssessmentTable
+          items={workspace.items}
+          role={role}
+          userId={userId}
+        />
       ) : (
         <AssessmentResults
           items={workspace.items}

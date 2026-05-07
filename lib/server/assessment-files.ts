@@ -82,7 +82,19 @@ function getAllowedExtensions(purpose: UploadPurpose) {
     return ["pdf", "docx", "txt", "zip"];
   }
 
-  return ["pdf", "png", "jpg", "jpeg", "webp"];
+  return [
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "avif",
+    "tif",
+    "tiff",
+    "heic",
+    "heif",
+  ];
 }
 
 function getMaxUploadBytes(purpose: UploadPurpose) {
@@ -128,6 +140,49 @@ function detectMimeType(buffer: Buffer, extension: string) {
     buffer.subarray(8, 12).toString("ascii") === "WEBP"
   ) {
     return "image/webp";
+  }
+
+  const gifHeader = buffer.subarray(0, 6).toString("ascii");
+  if (gifHeader === "GIF87a" || gifHeader === "GIF89a") {
+    return "image/gif";
+  }
+
+  if (buffer[0] === 0x42 && buffer[1] === 0x4d) {
+    return "image/bmp";
+  }
+
+  if (
+    (buffer[0] === 0x49 &&
+      buffer[1] === 0x49 &&
+      buffer[2] === 0x2a &&
+      buffer[3] === 0x00) ||
+    (buffer[0] === 0x4d &&
+      buffer[1] === 0x4d &&
+      buffer[2] === 0x00 &&
+      buffer[3] === 0x2a)
+  ) {
+    return "image/tiff";
+  }
+
+  if (buffer.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brands = buffer
+      .subarray(8, Math.min(buffer.length, 64))
+      .toString("ascii");
+
+    if (brands.includes("avif") || brands.includes("avis")) {
+      return "image/avif";
+    }
+
+    if (
+      brands.includes("heic") ||
+      brands.includes("heix") ||
+      brands.includes("hevc") ||
+      brands.includes("hevx") ||
+      brands.includes("mif1") ||
+      brands.includes("msf1")
+    ) {
+      return extension === "heif" ? "image/heif" : "image/heic";
+    }
   }
 
   if (extension === "txt") {
@@ -181,6 +236,13 @@ function assertImageIsSafe(buffer: Buffer, extension: string, mimeType: string) 
     ["jpg", "image/jpeg"],
     ["jpeg", "image/jpeg"],
     ["webp", "image/webp"],
+    ["gif", "image/gif"],
+    ["bmp", "image/bmp"],
+    ["avif", "image/avif"],
+    ["tif", "image/tiff"],
+    ["tiff", "image/tiff"],
+    ["heic", "image/heic"],
+    ["heif", "image/heif"],
   ]);
 
   if (allowed.get(extension) !== mimeType) {

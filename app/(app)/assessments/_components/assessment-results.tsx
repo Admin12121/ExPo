@@ -54,6 +54,8 @@ const status = [
   { label: "Inactive", value: "inactive" },
 ] as const;
 
+const CARD_BATCH_SIZE = 12;
+
 type AssessmentStatusFilter = (typeof status)[number]["value"];
 
 const activeAssessmentStatuses = new Set([
@@ -166,8 +168,20 @@ function AssessmentCard({
           statusLabel(item.status),
         )}
       >
-        <Link href={`/assessments/${item.id}`}>
-          <Card className="relative min-h-40 aspect-[4/3] flex-1 flex-col flex-wrap overflow-x-auto dark:bg-background">
+        <Link
+          href={`/assessments/${item.id}`}
+          style={
+            item.status === "downloaded"
+              ? {
+                  padding: "1px",
+                  background:
+                    "linear-gradient(135deg, #A97CF8, #F38CB8, #FDCC92)",
+                  borderRadius: "18px",
+                }
+              : undefined
+          }
+        >
+          <Card className="relative min-h-40 aspect-4/3 flex-1 flex-col flex-wrap overflow-x-auto dark:bg-background">
             <CardPanel className="flex flex-1 items-center justify-center lg:px-8 lg:py-12 relative">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -180,7 +194,7 @@ function AssessmentCard({
             <div
               className={cn(
                 badgeVariants({ variant: statusVariant(item.status) }),
-                "absolute top-[10px] right-[12px] p-0 size-1.5! min-w-1.5! animate-ping",
+                "absolute top-2.5 right-3 p-0 size-1.5! min-w-1.5! animate-ping",
               )}
             />
             <div
@@ -339,18 +353,6 @@ export function UserAssessmentTable({
   role: string;
   userId: string;
 }) {
-  return <AssessmentTable items={items} role={role} userId={userId} />;
-}
-
-export function AssessmentResults({
-  items,
-  role,
-  userId,
-}: {
-  items: AssessmentSummary[];
-  role: string;
-  userId: string;
-}) {
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] =
     React.useState<AssessmentStatusFilter>("all");
@@ -374,48 +376,147 @@ export function AssessmentResults({
   } = useTablePagination(filteredItems);
 
   return (
-    <Tabs defaultValue="cards">
-      <div className="flex items-center justify-between gap-3">
-        <TabsList>
-          <TabsTrigger value="cards">
-            <LayoutGrid />
-            Cards
-          </TabsTrigger>
-          <TabsTrigger value="table">
-            <TableProperties />
-            Table
-          </TabsTrigger>
-        </TabsList>
-        <div className="text-muted-foreground text-sm">
-          Showing latest {items.length}
-        </div>
-      </div>
-      <TabsContent
-        className="grid flex-1 items-stretch gap-9 pb-12 lg:grid-cols-4 lg:gap-6"
-        value="cards"
-      >
-        {items.map((item) => (
-          <AssessmentCard
-            item={item}
-            key={item.id}
-            role={role}
-            userId={userId}
+    <div className="grid gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <InputGroup className="max-w-80">
+          <InputGroupInput
+            aria-label="Search assessments"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search"
+            type="search"
+            value={query}
           />
-        ))}
-        {items.length === 0 ? (
-          <FramePanel className="p-8 text-center text-muted-foreground text-sm md:col-span-2 xl:col-span-3">
-            No assessments yet.
-          </FramePanel>
-        ) : null}
-      </TabsContent>
-      <TabsContent value="table">
-        <div className="flex items-center justify-between w-full mb-2">
+          <InputGroupAddon>
+            <SearchIcon aria-hidden="true" />
+          </InputGroupAddon>
+        </InputGroup>
+        <span className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">
+            Showing latest {items.length}
+          </span>
+          <Select
+            aria-label="Filter assessments by status"
+            items={status}
+            onValueChange={(value) => {
+              setStatusFilter((value ?? "all") as AssessmentStatusFilter);
+              setCurrentPage(1);
+            }}
+            value={statusFilter}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {status.map(({ label, value }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        </span>
+      </div>
+      <AssessmentTable items={paginatedItems} role={role} userId={userId} />
+      <TablePagination
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        totalPages={totalPages}
+      />
+    </div>
+  );
+}
+
+export function AssessmentResults({
+  items,
+  role,
+  userId,
+}: {
+  items: AssessmentSummary[];
+  role: string;
+  userId: string;
+}) {
+  const [query, setQuery] = React.useState("");
+  const [statusFilter, setStatusFilter] =
+    React.useState<AssessmentStatusFilter>("all");
+  const [visibleCardCount, setVisibleCardCount] =
+    React.useState(CARD_BATCH_SIZE);
+  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredItems = React.useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          matchesStatus(item, statusFilter) &&
+          matchesSearch(item, normalizedQuery),
+      ),
+    [items, normalizedQuery, statusFilter],
+  );
+  const visibleCardItems = filteredItems.slice(0, visibleCardCount);
+  const hasMoreCards = visibleCardCount < filteredItems.length;
+  const {
+    currentPage,
+    pageSize,
+    paginatedItems,
+    setCurrentPage,
+    totalItems,
+    totalPages,
+  } = useTablePagination(filteredItems);
+  const showMoreCards = React.useCallback(() => {
+    setVisibleCardCount((currentCount) =>
+      Math.min(currentCount + CARD_BATCH_SIZE, filteredItems.length),
+    );
+  }, [filteredItems.length]);
+
+  React.useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !hasMoreCards) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          showMoreCards();
+        }
+      },
+      { rootMargin: "360px 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMoreCards, showMoreCards]);
+
+  return (
+    <Tabs defaultValue="cards">
+      <div className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="cards">
+              <LayoutGrid />
+              Cards
+            </TabsTrigger>
+            <TabsTrigger value="table">
+              <TableProperties />
+              Table
+            </TabsTrigger>
+          </TabsList>
+          <div className="text-muted-foreground text-sm">
+            Showing {filteredItems.length} of {items.length}
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <InputGroup className="max-w-80">
             <InputGroupInput
-              aria-label="Search"
+              aria-label="Search assessments"
               onChange={(event) => {
                 setQuery(event.target.value);
                 setCurrentPage(1);
+                setVisibleCardCount(CARD_BATCH_SIZE);
               }}
               placeholder="Search"
               type="search"
@@ -425,29 +526,55 @@ export function AssessmentResults({
               <SearchIcon aria-hidden="true" />
             </InputGroupAddon>
           </InputGroup>
-          <span className="flex gap-2">
-            <Select
-              aria-label="Select framework"
-              items={status}
-              onValueChange={(value) => {
-                setStatusFilter((value ?? "all") as AssessmentStatusFilter);
-                setCurrentPage(1);
-              }}
-              value={statusFilter}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectPopup>
-                {status.map(({ label, value }) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          </span>
+          <Select
+            aria-label="Filter assessments by status"
+            items={status}
+            onValueChange={(value) => {
+              setStatusFilter((value ?? "all") as AssessmentStatusFilter);
+              setCurrentPage(1);
+              setVisibleCardCount(CARD_BATCH_SIZE);
+            }}
+            value={statusFilter}
+          >
+            <SelectTrigger className={"max-w-[250px]"}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {status.map(({ label, value }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
         </div>
+      </div>
+      <TabsContent
+        className="grid flex-1 items-stretch gap-9 pb-12 lg:grid-cols-4 lg:gap-6"
+        value="cards"
+      >
+        {visibleCardItems.map((item) => (
+          <AssessmentCard
+            item={item}
+            key={item.id}
+            role={role}
+            userId={userId}
+          />
+        ))}
+        {filteredItems.length === 0 ? (
+          <FramePanel className="p-8 text-center text-muted-foreground text-sm md:col-span-2 xl:col-span-3">
+            No assessments yet.
+          </FramePanel>
+        ) : null}
+        {hasMoreCards ? (
+          <div
+            aria-hidden="true"
+            className="h-px md:col-span-2 lg:col-span-4"
+            ref={loadMoreRef}
+          />
+        ) : null}
+      </TabsContent>
+      <TabsContent value="table">
         <AssessmentTable items={paginatedItems} role={role} userId={userId} />
         <TablePagination
           currentPage={currentPage}

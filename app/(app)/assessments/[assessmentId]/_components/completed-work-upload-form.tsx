@@ -1,16 +1,12 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { UploadIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 
 import { AssessmentFileTableUpload } from "../../_components/assessment-file-upload";
-import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Form } from "@/components/ui/form";
+import type { ExistingUploadFile } from "@/hooks/use-file-upload";
 
 const MAX_FILES = 3;
 const COMPLETED_MAX_SIZE = 30 * 1024 * 1024;
@@ -40,99 +36,179 @@ const completedWorkSchema = z.object({
     .max(MAX_FILES, `Upload up to ${MAX_FILES} files.`),
 });
 
-type CompletedWorkFormValues = z.infer<typeof completedWorkSchema>;
-
 type CompletedWorkUploadFormProps = {
   assessmentId: string;
+  canManageFiles: boolean;
+  initialFiles: ExistingUploadFile[];
 };
+
+function getFilesSignature(files: File[]) {
+  return files
+    .map((file) => `${file.name}:${file.size}:${file.lastModified}`)
+    .join("|");
+}
+
+function getSchemaError(error: z.ZodError) {
+  return error.issues[0]?.message ?? "Unable to upload completed file.";
+}
 
 export function CompletedWorkUploadForm({
   assessmentId,
+  canManageFiles,
+  initialFiles,
 }: CompletedWorkUploadFormProps) {
   const router = useRouter();
-  const {
-    clearErrors,
-    formState: { errors, isSubmitted, isSubmitting },
-    control,
-    handleSubmit,
-    setError,
-    setValue,
-  } = useForm<CompletedWorkFormValues>({
-    defaultValues: {
-      files: [],
-    },
-    resolver: zodResolver(completedWorkSchema),
-  });
-  const selectedFiles = useWatch({ control, name: "files" });
-  const hasFiles = selectedFiles.length > 0;
+  const lastSubmittedSignatureRef = useRef<string | null>(null);
+  const uploadingRef = useRef(false);
+  const [fileError, setFileError] = useState<string>();
+  const [busyMessage, setBusyMessage] = useState<string>();
+  const [uploadError, setUploadError] = useState<string>();
 
-  const handleFilesChange = useCallback(
-    (files: File[]) => {
-      setValue("files", files, {
-        shouldDirty: files.length > 0,
-        shouldValidate: isSubmitted || files.length > 0,
-      });
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      if (!canManageFiles) {
+        return;
+      }
 
-      if (!isSubmitted && files.length === 0) {
-        clearErrors("files");
+      if (files.length === 0) {
+        lastSubmittedSignatureRef.current = null;
+        setFileError(undefined);
+        setUploadError(undefined);
+        return;
+      }
+
+      const signature = getFilesSignature(files);
+      if (
+        uploadingRef.current ||
+        lastSubmittedSignatureRef.current === signature
+      ) {
+        return;
+      }
+
+      const parsed = completedWorkSchema.safeParse({ files });
+      if (!parsed.success) {
+        setFileError(getSchemaError(parsed.error));
+        return;
+      }
+
+      const formData = new FormData();
+      formData.set("assessmentId", assessmentId);
+      for (const file of parsed.data.files) {
+        formData.append("file", file);
+      }
+
+      lastSubmittedSignatureRef.current = signature;
+      uploadingRef.current = true;
+      setFileError(undefined);
+      setUploadError(undefined);
+      setBusyMessage("Uploading completed work...");
+
+      try {
+        const response = await fetch(
+          `/api/assessments/${assessmentId}/complete`,
+          {
+            body: formData,
+            method: "POST",
+          },
+        );
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          ok?: boolean;
+        } | null;
+
+        if (!response.ok || !payload?.ok) {
+          lastSubmittedSignatureRef.current = null;
+          setUploadError(payload?.error ?? "Unable to upload completed file.");
+          return;
+        }
+
+        router.refresh();
+      } catch {
+        lastSubmittedSignatureRef.current = null;
+        setUploadError("Unable to upload completed file.");
+      } finally {
+        uploadingRef.current = false;
+        setBusyMessage(undefined);
       }
     },
-    [clearErrors, isSubmitted, setValue],
+    [assessmentId, canManageFiles, router],
   );
 
-  async function submit(values: CompletedWorkFormValues) {
-    if (values.files.length === 0) {
-      setError("files", { message: "Completed file is required." });
-      return;
-    }
+  const removeExistingFile = useCallback(
+    async (file: ExistingUploadFile) => {
+      if (!canManageFiles) {
+        return;
+      }
 
-    const formData = new FormData();
-    formData.set("assessmentId", assessmentId);
-    for (const file of values.files) {
-      formData.append("file", file);
-    }
+      setUploadError(undefined);
+      setBusyMessage("Removing completed work...");
 
-    const response = await fetch(`/api/assessments/${assessmentId}/complete`, {
-      body: formData,
-      method: "POST",
-    });
-    const payload = (await response.json().catch(() => null)) as {
-      error?: string;
-      ok?: boolean;
-    } | null;
+      try {
+        const response = await fetch(
+          `/api/assessments/${assessmentId}/complete`,
+          {
+            body: JSON.stringify({ fileId: file.id }),
+            headers: {
+              "content-type": "application/json",
+            },
+            method: "DELETE",
+          },
+        );
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          ok?: boolean;
+        } | null;
 
-    if (!response.ok || !payload?.ok) {
-      setError("root", {
-        message: payload?.error ?? "Unable to upload completed file.",
-      });
-      return;
-    }
+        if (!response.ok || !payload?.ok) {
+          const message =
+            payload?.error ?? "Unable to remove completed file.";
+          setUploadError(message);
+          throw new Error(message);
+        }
 
-    router.refresh();
-  }
+        router.refresh();
+      } catch (error) {
+        setUploadError(
+          error instanceof Error
+            ? error.message
+            : "Unable to remove completed file.",
+        );
+        throw error;
+      } finally {
+        setBusyMessage(undefined);
+      }
+    },
+    [assessmentId, canManageFiles, router],
+  );
 
   return (
-    <Form className="grid gap-3" onSubmit={handleSubmit(submit)}>
-      <Field className={"items-center justify-center"}>
+    <div className="grid gap-3">
+      <Field
+        aria-busy={Boolean(busyMessage)}
+        className="items-center justify-center"
+      >
         <AssessmentFileTableUpload
           accept={COMPLETED_ACCEPT}
-          error={errors.files?.message}
+          disabled={Boolean(busyMessage)}
+          error={fileError}
+          initialFiles={initialFiles}
           maxFiles={MAX_FILES}
           maxSize={COMPLETED_MAX_SIZE}
-          onFilesChange={handleFilesChange}
+          onExistingFileRemove={removeExistingFile}
+          onFilesChange={uploadFiles}
+          readOnly={!canManageFiles}
         />
       </Field>
-      {errors.root?.message ? (
-        <p className="text-destructive text-xs" role="alert">
-          {errors.root.message}
+      {busyMessage ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {busyMessage}
         </p>
       ) : null}
-      <div className="flex justify-end">
-        <Button disabled={!hasFiles} loading={isSubmitting} type="submit">
-          <UploadIcon aria-hidden="true" className="-ms-1 opacity-60" />
-          Upload completed work
-        </Button>
-      </div>
-    </Form>
+      {uploadError ? (
+        <p className="text-destructive text-xs" role="alert">
+          {uploadError}
+        </p>
+      ) : null}
+    </div>
   );
 }

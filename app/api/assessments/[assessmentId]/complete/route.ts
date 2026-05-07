@@ -2,7 +2,10 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth/server";
-import { completeAssessmentFromForm } from "@/lib/server/assessments";
+import {
+  completeAssessmentFromForm,
+  removeCompletedAssessmentFile,
+} from "@/lib/server/assessments";
 
 export const runtime = "nodejs";
 
@@ -32,6 +35,10 @@ function getErrorStatus(error: unknown) {
     return 409;
   }
 
+  if (error.message.includes("can no longer be removed")) {
+    return 409;
+  }
+
   return 400;
 }
 
@@ -52,6 +59,43 @@ export async function POST(request: Request, context: Context) {
     };
 
     await completeAssessmentFromForm(user, assessmentId, formData);
+    revalidatePath("/assessments");
+    revalidatePath(`/assessments/${assessmentId}`);
+
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : String(error) },
+      { status: getErrorStatus(error) },
+    );
+  }
+}
+
+export async function DELETE(request: Request, context: Context) {
+  try {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { assessmentId } = await context.params;
+    const body = (await request.json().catch(() => null)) as {
+      fileId?: unknown;
+    } | null;
+    const fileId = typeof body?.fileId === "string" ? body.fileId.trim() : "";
+
+    if (!fileId) {
+      return NextResponse.json({ error: "Missing fileId" }, { status: 400 });
+    }
+
+    const user = session.user as typeof session.user & {
+      role?: string | null;
+    };
+
+    await removeCompletedAssessmentFile(user, assessmentId, fileId);
     revalidatePath("/assessments");
     revalidatePath(`/assessments/${assessmentId}`);
 

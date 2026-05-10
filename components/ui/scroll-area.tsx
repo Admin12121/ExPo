@@ -7,10 +7,12 @@ import { cn } from "@/lib/utils";
 export function ScrollArea({
   className,
   children,
+  hideScrollbar = false,
   scrollFade = false,
   scrollbarGutter = false,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
+  hideScrollbar?: boolean;
   scrollFade?: boolean;
   scrollbarGutter?: boolean;
 }): React.ReactElement {
@@ -26,14 +28,20 @@ export function ScrollArea({
             "mask-t-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-start)))] mask-b-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-end)))] mask-l-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-end)))] [--fade-size:1.5rem]",
           scrollbarGutter &&
             "data-has-overflow-y:pe-2.5 data-has-overflow-x:pb-2.5",
+          hideScrollbar &&
+            "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         )}
         data-slot="scroll-area-viewport"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar orientation="vertical" />
-      <ScrollBar orientation="horizontal" />
-      <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" />
+      {hideScrollbar ? null : (
+        <>
+          <ScrollBar orientation="vertical" />
+          <ScrollBar orientation="horizontal" />
+          <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" />
+        </>
+      )}
     </ScrollAreaPrimitive.Root>
   );
 }

@@ -2,6 +2,7 @@
 
 import {
   ClipboardList,
+  FileWarningIcon,
   LayoutDashboardIcon,
   SettingsIcon,
   UsersRound,
@@ -53,6 +54,12 @@ const navigation = [
         title: "Users",
         href: "/users",
         icon: UsersRound,
+        roles: ["admin"],
+      },
+      {
+        title: "Reports",
+        href: "/reports",
+        icon: FileWarningIcon,
         roles: ["admin"],
       },
     ],

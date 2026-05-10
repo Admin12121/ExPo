@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { AnimatedThemeToggler } from "@/components/animated-theme-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportDialog } from "./report-dialog";
 
 function subscribe() {
   return () => {};
@@ -53,13 +54,16 @@ export function NavSecondary({
             </SidebarMenuItem>
           ))}
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-            <SidebarMenuButton
-              className="cursor-default hover:bg-transparent active:bg-transparent"
-              render={<div />}
-            >
-              <HelpCircleIcon className="size-5" />
-              <span>Get Help</span>
-            </SidebarMenuButton>
+            <ReportDialog
+              description="Send an issue, complaint, suggestion, or improvement request to the admin team."
+              title="Get help"
+              trigger={
+                <SidebarMenuButton type="button">
+                  <HelpCircleIcon className="size-5" />
+                  <span>Get Help</span>
+                </SidebarMenuButton>
+              }
+            />
           </SidebarMenuItem>
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
             <SidebarMenuButton

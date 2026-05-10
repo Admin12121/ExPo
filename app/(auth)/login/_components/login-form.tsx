@@ -21,8 +21,40 @@ import {
 import { Form } from "@/components/ui/form";
 import { Frame } from "@/components/ui/frame";
 import { Input } from "@/components/ui/input";
+import { toastManager } from "@/components/ui/toast";
 
 type AuthMode = "signin" | "signup";
+
+function authErrorMessage(error: { code?: string; message?: string }, mode: AuthMode) {
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+
+  if (code === "EMAIL_NOT_VERIFIED") {
+    return "Please verify your email before signing in.";
+  }
+
+  if (
+    message.includes("invalid") ||
+    message.includes("credential") ||
+    message.includes("password")
+  ) {
+    return mode === "signin"
+      ? "The email or password is incorrect."
+      : "Please use a stronger password and try again.";
+  }
+
+  if (message.includes("user already exists") || message.includes("already")) {
+    return "An account already exists for this email. Sign in instead.";
+  }
+
+  if (message.includes("rate") || message.includes("too many")) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+
+  return mode === "signin"
+    ? "Unable to sign in. Check your details and try again."
+    : "Unable to create your account. Check the form and try again.";
+}
 
 export function LoginForm({
   nextPath = "/dashboard",
@@ -73,12 +105,13 @@ export function LoginForm({
         return;
       }
 
-      setError(
-        result.error.message ??
-          (mode === "signin"
-            ? "Unable to sign in."
-            : "Unable to create your account."),
-      );
+      const message = authErrorMessage(result.error, mode);
+      setError(message);
+      toastManager.add({
+        description: message,
+        title: mode === "signin" ? "Sign in failed" : "Sign up failed",
+        type: "error",
+      });
 
       // if signin failed due to wrong password, highlight forgotten password
       if (mode === "signin") {
@@ -103,22 +136,42 @@ export function LoginForm({
           ? result.data.token
           : null;
     if (!token) {
+      toastManager.add({
+        description: "Check your inbox to finish email verification.",
+        title: "Verification required",
+        type: "info",
+      });
       router.push(
         `/email-otp/verify?email=${encodeURIComponent(email.trim())}`,
       );
       return;
     }
 
+    toastManager.add({
+      description: "Welcome back.",
+      title: "Signed in",
+      type: "success",
+    });
     router.push(nextPath);
     router.refresh();
   }
 
   async function signInWithSocial(provider: "google") {
     setError(null);
-    await authClient.signIn.social({
-      provider,
-      callbackURL: nextPath,
-    });
+    try {
+      await authClient.signIn.social({
+        provider,
+        callbackURL: nextPath,
+      });
+    } catch {
+      const message = "Unable to start Google sign in. Please try again.";
+      setError(message);
+      toastManager.add({
+        description: message,
+        title: "Google sign in failed",
+        type: "error",
+      });
+    }
   }
 
   return (

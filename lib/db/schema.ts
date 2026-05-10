@@ -52,6 +52,17 @@ export const assessmentReportStatuses = ["open", "resolved"] as const;
 
 export type AssessmentReportStatus = (typeof assessmentReportStatuses)[number];
 
+export const assessmentReportCategories = [
+  "issue",
+  "problem",
+  "complaint",
+  "suggestion",
+  "improvement",
+] as const;
+
+export type AssessmentReportCategory =
+  (typeof assessmentReportCategories)[number];
+
 export const notificationStatuses = ["unread", "read"] as const;
 
 export type NotificationStatus = (typeof notificationStatuses)[number];
@@ -428,7 +439,6 @@ export const assessmentReports = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     assessmentId: uuid("assessment_id")
-      .notNull()
       .references(() => assessments.id, {
         onDelete: "cascade",
         onUpdate: "cascade",
@@ -441,6 +451,7 @@ export const assessmentReports = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }),
+    category: text("category").notNull().default("issue"),
     reason: text("reason").notNull(),
     status: text("status").notNull().default("open"),
     resolvedById: uuid("resolved_by_id").references(() => users.id, {
@@ -458,6 +469,10 @@ export const assessmentReports = pgTable(
     check(
       "assessment_reports_status_check",
       sql`${table.status} in ('open', 'resolved')`,
+    ),
+    check(
+      "assessment_reports_category_check",
+      sql`${table.category} in ('issue', 'problem', 'complaint', 'suggestion', 'improvement')`,
     ),
   ],
 );

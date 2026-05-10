@@ -91,9 +91,10 @@ export async function verifyPaymentAction(formData: FormData) {
 export async function reportAssessmentAction(formData: FormData) {
   const session = await requireSession("/assessments");
   const assessmentId = getText(formData, "assessmentId");
+  const category = getText(formData, "category");
   const reason = getText(formData, "reason");
 
-  await createAssessmentReport(session.user, assessmentId, reason);
+  await createAssessmentReport(session.user, assessmentId, category, reason);
   revalidatePath(`/assessments/${assessmentId}`);
 }
 

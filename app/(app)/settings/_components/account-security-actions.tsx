@@ -2,26 +2,27 @@
 
 import type React from "react";
 import { useRouter } from "next/navigation";
-import {
-  KeyRoundIcon,
-  LockKeyholeIcon,
-  MailIcon,
-  ShieldCheckIcon,
-} from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+  Dialog,
+  DialogClose,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Field, FieldGroup } from "@/components/ui/field";
+import { FrameFooter, FramePanel } from "@/components/ui/frame";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/client";
 
 type AccountSecurityActionsProps = {
   email: string;
+  scope?: "all" | "authenticator" | "passkey" | "passkeys" | "security";
   twoFactorEnabled: boolean;
 };
 
@@ -44,6 +45,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function AccountSecurityActions({
   email,
+  scope = "all",
   twoFactorEnabled,
 }: AccountSecurityActionsProps) {
   const router = useRouter();
@@ -54,6 +56,13 @@ export function AccountSecurityActions({
   const [totpUri, setTotpUri] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [authenticatorOpen, setAuthenticatorOpen] = useState(false);
+  const [passkeyOpen, setPasskeyOpen] = useState(false);
+  const showAuthenticator =
+    scope === "all" || scope === "authenticator" || scope === "passkeys";
+  const showPasskey =
+    scope === "all" || scope === "passkey" || scope === "passkeys";
+  const showSecurity = scope === "all" || scope === "security";
 
   async function changePassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,6 +132,7 @@ export function AccountSecurityActions({
 
       event.currentTarget.reset();
       setPasskeyMessage("Passkey added.");
+      setPasskeyOpen(false);
       router.refresh();
     } catch (error) {
       setPasskeyMessage(getErrorMessage(error, "Unable to add passkey."));
@@ -155,6 +165,7 @@ export function AccountSecurityActions({
         setTwoFactorMessage("Authenticator setup started.");
       } else {
         setTwoFactorMessage("Authenticator disabled.");
+        setAuthenticatorOpen(false);
       }
 
       event.currentTarget.reset();
@@ -169,161 +180,208 @@ export function AccountSecurityActions({
   }
 
   return (
-    <FieldGroup className="grid gap-6">
-      <form className="grid gap-3" onSubmit={changePassword}>
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <LockKeyholeIcon className="size-4 text-muted-foreground" />
-          Password
-        </div>
-        <FieldGroup className="grid gap-3 md:grid-cols-2">
-          <Field>
-            <FieldLabel>Current password</FieldLabel>
-            <Input
-              autoComplete="current-password"
-              disabled={pendingAction === "password"}
-              nativeInput
-              name="currentPassword"
-              required
-              type="password"
-            />
-          </Field>
-          <Field>
-            <FieldLabel>New password</FieldLabel>
-            <Input
-              autoComplete="new-password"
-              disabled={pendingAction === "password"}
-              minLength={8}
-              nativeInput
-              name="newPassword"
-              required
-              type="password"
-            />
-          </Field>
-        </FieldGroup>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            disabled={pendingAction === "password"}
-            loading={pendingAction === "password"}
-            size="sm"
-            type="submit"
-          >
-            Save password
-          </Button>
-          {passwordMessage ? (
-            <span className="text-sm text-muted-foreground">
-              {passwordMessage}
-            </span>
-          ) : null}
-        </div>
-      </form>
+    <>
+      {showSecurity ? (
+        <form className="contents" onSubmit={changePassword}>
+          <FramePanel>
+            <FieldGroup className="flex max-w-2xl flex-col gap-3">
+              <Field>
+                <Input
+                  aria-label="Current password"
+                  autoComplete="current-password"
+                  disabled={pendingAction === "password"}
+                  nativeInput
+                  name="currentPassword"
+                  placeholder="Current password"
+                  required
+                  type="password"
+                />
+              </Field>
+              <Field>
+                <Input
+                  aria-label="New password"
+                  autoComplete="new-password"
+                  disabled={pendingAction === "password"}
+                  minLength={8}
+                  nativeInput
+                  name="newPassword"
+                  placeholder="New password"
+                  required
+                  type="password"
+                />
+              </Field>
+            </FieldGroup>
+          </FramePanel>
+          <FrameFooter className="p-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                disabled={pendingAction === "reset"}
+                loading={pendingAction === "reset"}
+                onClick={() => void sendPasswordReset()}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                Send reset email
+              </Button>
+              <Button
+                disabled={pendingAction === "password"}
+                loading={pendingAction === "password"}
+                size="sm"
+                type="submit"
+              >
+                Save password
+              </Button>
+              {resetMessage ? (
+                <span className="text-sm text-muted-foreground">
+                  {resetMessage}
+                </span>
+              ) : null}
+              {passwordMessage ? (
+                <span className="text-sm text-muted-foreground">
+                  {passwordMessage}
+                </span>
+              ) : null}
+            </div>
+          </FrameFooter>
+        </form>
+      ) : null}
 
-      <section className="grid gap-3 border-t pt-4">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <MailIcon className="size-4 text-muted-foreground" />
-          Password reset
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            disabled={pendingAction === "reset"}
-            loading={pendingAction === "reset"}
-            onClick={() => void sendPasswordReset()}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            Send reset email
-          </Button>
-          {resetMessage ? (
-            <span className="text-sm text-muted-foreground">
-              {resetMessage}
-            </span>
-          ) : null}
-        </div>
-      </section>
-
-      <form className="grid gap-3 border-t pt-4" onSubmit={addPasskey}>
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <KeyRoundIcon className="size-4 text-muted-foreground" />
-          Passkey
-        </div>
-        <Field>
-          <FieldLabel>Passkey name</FieldLabel>
-          <Input
-            disabled={pendingAction === "passkey"}
-            name="passkeyName"
-            placeholder="Work laptop"
-          />
-          <FieldDescription>
-            Browser passkey support is required on this device.
-          </FieldDescription>
-        </Field>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            disabled={pendingAction === "passkey"}
-            loading={pendingAction === "passkey"}
-            size="sm"
-            type="submit"
-          >
+      {showPasskey ? (
+        <Dialog open={passkeyOpen} onOpenChange={setPasskeyOpen}>
+          <DialogTrigger render={<Button size="sm" />}>
             Add passkey
-          </Button>
-          {passkeyMessage ? (
-            <span className="text-sm text-muted-foreground">
-              {passkeyMessage}
-            </span>
-          ) : null}
-        </div>
-      </form>
+          </DialogTrigger>
+          <DialogPopup>
+            <DialogHeader>
+              <DialogTitle>Add passkey</DialogTitle>
+            </DialogHeader>
+            <form className="contents" onSubmit={addPasskey}>
+              <DialogPanel>
+                <FieldGroup className="flex flex-col gap-3">
+                  <Field>
+                    <Input
+                      aria-label="Passkey name"
+                      disabled={pendingAction === "passkey"}
+                      name="passkeyName"
+                      nativeInput
+                      placeholder="Work laptop"
+                      type="text"
+                    />
+                  </Field>
+                  {passkeyMessage ? (
+                    <span className="text-sm text-muted-foreground">
+                      {passkeyMessage}
+                    </span>
+                  ) : null}
+                </FieldGroup>
+              </DialogPanel>
+              <DialogFooter>
+                <DialogClose
+                  render={
+                    <Button
+                      disabled={pendingAction === "passkey"}
+                      type="button"
+                      variant="outline"
+                    />
+                  }
+                >
+                  Cancel
+                </DialogClose>
+                <Button
+                  disabled={pendingAction === "passkey"}
+                  loading={pendingAction === "passkey"}
+                  type="submit"
+                >
+                  Add passkey
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogPopup>
+        </Dialog>
+      ) : null}
 
-      <form className="grid gap-3 border-t pt-4" onSubmit={setupAuthenticator}>
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <ShieldCheckIcon className="size-4 text-muted-foreground" />
-          Authenticator app
-        </div>
-        <Field>
-          <FieldLabel>Password</FieldLabel>
-          <Input
-            autoComplete="current-password"
-            disabled={pendingAction === "twoFactor"}
-            nativeInput
-            name="twoFactorPassword"
-            required
-            type="password"
-          />
-        </Field>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            disabled={pendingAction === "twoFactor"}
-            loading={pendingAction === "twoFactor"}
-            size="sm"
-            type="submit"
-            variant={twoFactorEnabled ? "destructive-outline" : "default"}
-          >
+      {showAuthenticator ? (
+        <Dialog open={authenticatorOpen} onOpenChange={setAuthenticatorOpen}>
+          <DialogTrigger render={<Button size="sm" />}>
             {twoFactorEnabled ? "Disable authenticator" : "Add authenticator"}
-          </Button>
-          {twoFactorMessage ? (
-            <span className="text-sm text-muted-foreground">
-              {twoFactorMessage}
-            </span>
-          ) : null}
-        </div>
-        {totpUri ? (
-          <div className="grid gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
-            <div className="break-all font-mono text-xs">{totpUri}</div>
-            {backupCodes.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {backupCodes.map((code) => (
-                  <span
-                    key={code}
-                    className="rounded-md border bg-background px-2 py-1 font-mono text-xs"
-                  >
-                    {code}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </form>
-    </FieldGroup>
+          </DialogTrigger>
+          <DialogPopup>
+            <DialogHeader>
+              <DialogTitle>
+                {twoFactorEnabled
+                  ? "Disable authenticator"
+                  : "Add authenticator"}
+              </DialogTitle>
+            </DialogHeader>
+            <form className="contents" onSubmit={setupAuthenticator}>
+              <DialogPanel>
+                <FieldGroup className="flex flex-col gap-3">
+                  <Field>
+                    <Input
+                      aria-label="Password"
+                      autoComplete="current-password"
+                      disabled={pendingAction === "twoFactor"}
+                      nativeInput
+                      name="twoFactorPassword"
+                      placeholder="Password"
+                      required
+                      type="password"
+                    />
+                  </Field>
+                  {totpUri ? (
+                    <div className="grid gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
+                      <div className="break-all font-mono text-xs">
+                        {totpUri}
+                      </div>
+                      {backupCodes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {backupCodes.map((code) => (
+                            <span
+                              key={code}
+                              className="rounded-md border bg-background px-2 py-1 font-mono text-xs"
+                            >
+                              {code}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {twoFactorMessage ? (
+                    <span className="text-sm text-muted-foreground">
+                      {twoFactorMessage}
+                    </span>
+                  ) : null}
+                </FieldGroup>
+              </DialogPanel>
+              <DialogFooter>
+                <DialogClose
+                  render={
+                    <Button
+                      disabled={pendingAction === "twoFactor"}
+                      type="button"
+                      variant="outline"
+                    />
+                  }
+                >
+                  Cancel
+                </DialogClose>
+                <Button
+                  disabled={pendingAction === "twoFactor"}
+                  loading={pendingAction === "twoFactor"}
+                  type="submit"
+                  variant={twoFactorEnabled ? "destructive-outline" : "default"}
+                >
+                  {twoFactorEnabled
+                    ? "Disable authenticator"
+                    : "Add authenticator"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogPopup>
+        </Dialog>
+      ) : null}
+    </>
   );
 }

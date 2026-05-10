@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { toastManager } from "@/components/ui/toast";
 
 type PaymentVerificationDialogProps = {
   assessmentId: string;
@@ -54,14 +55,31 @@ export function PaymentVerificationDialog({
       } | null;
 
       if (!response.ok || !payload?.ok) {
-        setError(payload?.error ?? "Unable to verify payment.");
+        const message = payload?.error ?? "Unable to verify payment.";
+        setError(message);
+        toastManager.add({
+          description: message,
+          title: "Payment not verified",
+          type: "error",
+        });
         return;
       }
 
       setOpen(false);
+      toastManager.add({
+        description: "Completed files are now unlocked for the user.",
+        title: "Payment verified",
+        type: "success",
+      });
       router.refresh();
     } catch {
-      setError("Unable to verify payment.");
+      const message = "Unable to verify payment.";
+      setError(message);
+      toastManager.add({
+        description: message,
+        title: "Payment not verified",
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -73,7 +91,6 @@ export function PaymentVerificationDialog({
         render={
           <Button
             aria-label="Confirm payment"
-            className="absolute top-2 right-2"
             size="icon-sm"
             type="button"
             variant="secondary"

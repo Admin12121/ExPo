@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
+import { toastManager } from "@/components/ui/toast";
 
 const PAYMENT_PROOF_MAX_SIZE = 10 * 1024 * 1024;
 const PAYMENT_PROOF_ACCEPT =
@@ -150,7 +151,13 @@ export function PaymentProofDialog({
   async function submit(values: PaymentProofFormValues) {
     const [file] = values.files;
     if (!file) {
-      setError("files", { message: "Payment proof file is required." });
+      const message = "Payment proof file is required.";
+      setError("files", { message });
+      toastManager.add({
+        description: message,
+        title: "Proof required",
+        type: "error",
+      });
       return;
     }
 
@@ -171,14 +178,25 @@ export function PaymentProofDialog({
     } | null;
 
     if (!response.ok || !payload?.ok) {
+      const message = payload?.error ?? "Unable to submit payment proof.";
       setError("root", {
-        message: payload?.error ?? "Unable to submit payment proof.",
+        message,
+      });
+      toastManager.add({
+        description: message,
+        title: "Proof not submitted",
+        type: "error",
       });
       return;
     }
 
     setOpen(false);
     reset();
+    toastManager.add({
+      description: "The writer can now verify the payment.",
+      title: "Payment proof submitted",
+      type: "success",
+    });
     router.refresh();
   }
 

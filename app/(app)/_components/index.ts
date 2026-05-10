@@ -4,3 +4,4 @@ export * from "./nav-secondary";
 export * from "./nav-user";
 export * from "./site-header";
 export * from "./pagination";
+export * from "./report-dialog";

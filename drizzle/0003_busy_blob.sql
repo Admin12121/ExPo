@@ -1,0 +1,3 @@
+ALTER TABLE "assessment_reports" ALTER COLUMN "assessment_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "assessment_reports" ADD COLUMN "category" text DEFAULT 'issue' NOT NULL;--> statement-breakpoint
+ALTER TABLE "assessment_reports" ADD CONSTRAINT "assessment_reports_category_check" CHECK ("assessment_reports"."category" in ('issue', 'problem', 'complaint', 'suggestion', 'improvement'));

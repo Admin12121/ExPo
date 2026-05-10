@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { AssessmentFileTableUpload } from "../../_components/assessment-file-upload";
 import { Field } from "@/components/ui/field";
+import { toastManager } from "@/components/ui/toast";
 import type { ExistingUploadFile } from "@/hooks/use-file-upload";
 
 const MAX_FILES = 3;
@@ -87,7 +88,13 @@ export function CompletedWorkUploadForm({
 
       const parsed = completedWorkSchema.safeParse({ files });
       if (!parsed.success) {
-        setFileError(getSchemaError(parsed.error));
+        const message = getSchemaError(parsed.error);
+        setFileError(message);
+        toastManager.add({
+          description: message,
+          title: "Upload blocked",
+          type: "error",
+        });
         return;
       }
 
@@ -118,14 +125,32 @@ export function CompletedWorkUploadForm({
 
         if (!response.ok || !payload?.ok) {
           lastSubmittedSignatureRef.current = null;
-          setUploadError(payload?.error ?? "Unable to upload completed file.");
+          const message =
+            payload?.error ?? "Unable to upload completed file.";
+          setUploadError(message);
+          toastManager.add({
+            description: message,
+            title: "Upload failed",
+            type: "error",
+          });
           return;
         }
 
+        toastManager.add({
+          description: "The user can continue to payment proof.",
+          title: "Completed work uploaded",
+          type: "success",
+        });
         router.refresh();
       } catch {
         lastSubmittedSignatureRef.current = null;
-        setUploadError("Unable to upload completed file.");
+        const message = "Unable to upload completed file.";
+        setUploadError(message);
+        toastManager.add({
+          description: message,
+          title: "Upload failed",
+          type: "error",
+        });
       } finally {
         uploadingRef.current = false;
         setBusyMessage(undefined);
@@ -160,19 +185,28 @@ export function CompletedWorkUploadForm({
         } | null;
 
         if (!response.ok || !payload?.ok) {
-          const message =
-            payload?.error ?? "Unable to remove completed file.";
+          const message = payload?.error ?? "Unable to remove completed file.";
           setUploadError(message);
           throw new Error(message);
         }
 
+        toastManager.add({
+          description: "The completed file was removed.",
+          title: "File removed",
+          type: "success",
+        });
         router.refresh();
       } catch (error) {
-        setUploadError(
+        const message =
           error instanceof Error
             ? error.message
-            : "Unable to remove completed file.",
-        );
+            : "Unable to remove completed file.";
+        setUploadError(message);
+        toastManager.add({
+          description: message,
+          title: "Remove failed",
+          type: "error",
+        });
         throw error;
       } finally {
         setBusyMessage(undefined);

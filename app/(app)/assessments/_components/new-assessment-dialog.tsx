@@ -36,6 +36,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/ui/frame";
+import { toastManager } from "@/components/ui/toast";
 
 const MAX_FILES = 3;
 const SOURCE_MAX_SIZE = 30 * 1024 * 1024;
@@ -130,7 +131,13 @@ export default function NewAssessmentDialog() {
 
   async function submit(values: NewAssessmentFormValues) {
     if (values.files.length === 0) {
-      setError("files", { message: "Source file is required." });
+      const message = "Source file is required.";
+      setError("files", { message });
+      toastManager.add({
+        description: message,
+        title: "Upload required",
+        type: "error",
+      });
       return;
     }
 
@@ -157,8 +164,14 @@ export default function NewAssessmentDialog() {
     } | null;
 
     if (!response.ok || !payload?.assessmentId) {
+      const message = payload?.error ?? "Unable to create assessment.";
       setError("root", {
-        message: payload?.error ?? "Unable to create assessment.",
+        message,
+      });
+      toastManager.add({
+        description: message,
+        title: "Assessment not created",
+        type: "error",
       });
       return;
     }
@@ -166,6 +179,11 @@ export default function NewAssessmentDialog() {
     setOpen(false);
     reset();
     setSelectedDeadline(undefined);
+    toastManager.add({
+      description: "The assessment was created successfully.",
+      title: "Assessment created",
+      type: "success",
+    });
     router.push(payload.redirect ?? `/assessments/${payload.assessmentId}`);
     router.refresh();
   }

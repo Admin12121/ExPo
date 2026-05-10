@@ -1,4 +1,4 @@
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon, OctagonAlertIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { AssessmentChatPanel } from "./_components/assessment-chat-panel";
 import { CompletedWorkUploadForm } from "./_components/completed-work-upload-form";
 import { PaymentProofDialog } from "./_components/payment-proof-dialog";
 import { PaymentVerificationDialog } from "./_components/payment-verification-dialog";
+import { ReportDialog } from "../../_components";
 import {
   Table,
   TableBody,
@@ -194,12 +195,29 @@ export default async function AssessmentDetailPage({ params }: PageProps) {
                   {assessment.title}
                 </FrameDescription>
               </div>
-              {canVerifyPayment ? (
-                <PaymentVerificationDialog
+              <div className="absolute top-2 right-2 flex items-center gap-1">
+                <ReportDialog
                   assessmentId={assessment.id}
-                  paymentProofFiles={paymentProofPreviewFiles}
+                  description="Report an issue, complaint, suggestion, or improvement request about this assessment."
+                  title="Report assessment"
+                  trigger={
+                    <Button
+                      aria-label="Report assessment"
+                      size="icon-sm"
+                      type="button"
+                      variant="destructive-outline"
+                    >
+                      <OctagonAlertIcon aria-hidden="true" />
+                    </Button>
+                  }
                 />
-              ) : null}
+                {canVerifyPayment ? (
+                  <PaymentVerificationDialog
+                    assessmentId={assessment.id}
+                    paymentProofFiles={paymentProofPreviewFiles}
+                  />
+                ) : null}
+              </div>
             </FrameHeader>
             <FramePanel className="grid gap-4">
               <div className="grid gap-3 md:grid-cols-3">

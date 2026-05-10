@@ -10,6 +10,7 @@ import {
   assessmentReports,
   assessments,
   notifications,
+  type AssessmentReportCategory,
   users,
   type AssessmentFileKind,
   type AssessmentStatus,
@@ -40,6 +41,10 @@ export type AssessmentDetail = NonNullable<
   Awaited<ReturnType<typeof getAssessmentDetail>>
 >;
 
+export type AdminAssessmentReport = Awaited<
+  ReturnType<typeof getAdminAssessmentReports>
+>[number];
+
 const mutableStatuses = [
   "in_progress",
   "close_requested",
@@ -68,6 +73,20 @@ function getText(formData: FormData, key: string, maxLength = 4000) {
   return String(formData.get(key) ?? "")
     .trim()
     .slice(0, maxLength);
+}
+
+function asReportCategory(value: unknown): AssessmentReportCategory {
+  if (
+    value === "issue" ||
+    value === "problem" ||
+    value === "complaint" ||
+    value === "suggestion" ||
+    value === "improvement"
+  ) {
+    return value;
+  }
+
+  return "issue";
 }
 
 function getPriceCents(value: string) {
@@ -290,6 +309,10 @@ function mapAssessmentRow(
   };
 }
 
+function mapUserSummary(row: { id: string; name: string; email: string } | null) {
+  return row ? { email: row.email, id: row.id, name: row.name } : null;
+}
+
 export async function getAssessmentWorkspace(user: AppSessionUser) {
   const role = asRole(user.role);
   const where =
@@ -329,6 +352,70 @@ export async function getAssessmentWorkspace(user: AppSessionUser) {
       total: items.length,
     },
   };
+}
+
+export async function getAdminAssessmentReports() {
+  const rows = await db
+    .select()
+    .from(assessmentReports)
+    .orderBy(desc(assessmentReports.createdAt))
+    .limit(200);
+
+  const assessmentIds = rows
+    .map((row) => row.assessmentId)
+    .filter((id): id is string => Boolean(id));
+
+  const assessmentRows =
+    assessmentIds.length > 0
+      ? await db
+          .select()
+          .from(assessments)
+          .where(inArray(assessments.id, Array.from(new Set(assessmentIds))))
+      : [];
+
+  const assessmentsById = new Map(
+    assessmentRows.map((row) => [row.id, row]),
+  );
+  const userIds = rows.flatMap((row) => [
+    row.reporterId ?? "",
+    row.targetUserId ?? "",
+  ]);
+  const assessmentUserIds = assessmentRows.flatMap((row) => [
+    row.userId,
+    row.writerId ?? "",
+  ]);
+  const usersById = await getUsersById([...userIds, ...assessmentUserIds]);
+
+  return rows.map((row) => {
+    const assessment = row.assessmentId
+      ? assessmentsById.get(row.assessmentId) ?? null
+      : null;
+
+    return {
+      ...row,
+      assessment: assessment
+        ? {
+            currency: assessment.currency,
+            id: assessment.id,
+            priceCents: assessment.priceCents,
+            status: assessment.status,
+            title: assessment.title,
+            topic: assessment.topic,
+            user: mapUserSummary(usersById.get(assessment.userId) ?? null),
+            writer: assessment.writerId
+              ? mapUserSummary(usersById.get(assessment.writerId) ?? null)
+              : null,
+          }
+        : null,
+      category: asReportCategory(row.category),
+      reporter: row.reporterId
+        ? mapUserSummary(usersById.get(row.reporterId) ?? null)
+        : null,
+      targetUser: row.targetUserId
+        ? mapUserSummary(usersById.get(row.targetUserId) ?? null)
+        : null,
+    };
+  });
 }
 
 export async function getAssessmentDetail(
@@ -903,6 +990,7 @@ export async function verifyAssessmentPayment(
 export async function createAssessmentReport(
   user: AppSessionUser,
   assessmentId: string,
+  category: string,
   reason: string,
 ) {
   const row = await getAssessmentRow(assessmentId);
@@ -914,6 +1002,7 @@ export async function createAssessmentReport(
 
   await db.insert(assessmentReports).values({
     assessmentId,
+    category: asReportCategory(category),
     reason: reason || "Issue reported.",
     reporterId: user.id,
     status: "open",
@@ -925,6 +1014,32 @@ export async function createAssessmentReport(
     body: `${user.name} reported an issue on ${row.title}.`,
     role: "admin",
     title: "Assessment report opened",
+  });
+}
+
+export async function createGeneralAssessmentReport(
+  user: AppSessionUser,
+  category: string,
+  reason: string,
+) {
+  const message = reason.trim();
+  if (!message) {
+    throw new Error("Tell us what happened before submitting.");
+  }
+
+  await db.insert(assessmentReports).values({
+    assessmentId: null,
+    category: asReportCategory(category),
+    reason: message,
+    reporterId: user.id,
+    status: "open",
+    targetUserId: null,
+  });
+
+  await insertNotification({
+    body: `${user.name} submitted a ${asReportCategory(category)} report.`,
+    role: "admin",
+    title: "New help report",
   });
 }
 

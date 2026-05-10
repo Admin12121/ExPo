@@ -91,7 +91,7 @@ export function NavUser({ user }: NavUserProps) {
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
-            <DropdownMenuGroup>
+            {/* <DropdownMenuGroup>
               <DropdownMenuItem>
                 <UserIcon />
                 Account
@@ -100,7 +100,7 @@ export function NavUser({ user }: NavUserProps) {
                 <SettingsIcon />
                 Settings
               </DropdownMenuItem>
-            </DropdownMenuGroup>
+            </DropdownMenuGroup> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={signOut}>
               <LogOutIcon />

@@ -2,6 +2,9 @@
 
 import * as React from "react";
 import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   HandIcon,
   LayoutGrid,
   SearchIcon,
@@ -26,6 +29,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectItem,
@@ -55,6 +59,10 @@ const status = [
 ] as const;
 
 const CARD_BATCH_SIZE = 12;
+const TIMELINE_CARD_HEIGHT = 126;
+const TIMELINE_CARD_WIDTH = 280;
+const TIMELINE_DAY_WIDTH = 160;
+const TIMELINE_HEADER_HEIGHT = 37;
 
 type AssessmentStatusFilter = (typeof status)[number]["value"];
 
@@ -84,6 +92,17 @@ function formatDate(value: Date | null) {
   }).format(value);
 }
 
+function formatDateTime(value: Date | null) {
+  if (!value) {
+    return "No deadline";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(value);
+}
+
 function statusLabel(status: string) {
   return status
     .split("_")
@@ -103,6 +122,68 @@ function actionFormData(assessmentId: string) {
   const formData = new FormData();
   formData.set("assessmentId", assessmentId);
   return formData;
+}
+
+function startOfDay(value: Date) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function addDays(value: Date, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function isSameDay(a: Date, b: Date) {
+  return startOfDay(a).getTime() === startOfDay(b).getTime();
+}
+
+function formatTimelineDay(value: Date) {
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    weekday: "short",
+  })
+    .format(value)
+    .toUpperCase();
+}
+
+function formatTimelineRange(start: Date, end: Date) {
+  const sameMonth =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth();
+
+  if (sameMonth) {
+    return `${new Intl.DateTimeFormat("en", {
+      month: "short",
+    }).format(start)} ${start.getDate()} - ${end.getDate()}`;
+  }
+
+  return `${new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+  }).format(start)} - ${new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+  }).format(end)}`;
+}
+
+function getTimelineRange(items: AssessmentSummary[], today: Date) {
+  const startTimes = items.map((item) => item.createdAt.getTime());
+  const endTimes = items.map((item) =>
+    (item.deadlineAt ?? item.createdAt).getTime(),
+  );
+  const start = startOfDay(new Date(Math.min(today.getTime(), ...startTimes)));
+  const end = startOfDay(new Date(Math.max(today.getTime(), ...endTimes)));
+  const dayCount =
+    Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000)) + 1;
+
+  return {
+    days: Array.from({ length: dayCount }, (_, index) => addDays(start, index)),
+    end,
+    start,
+  };
 }
 
 function matchesStatus(
@@ -137,6 +218,313 @@ function matchesSearch(item: AssessmentSummary, query: string) {
     .toLowerCase();
 
   return searchable.includes(query);
+}
+
+function TimelineAssessmentCard({
+  item,
+  role,
+  userId,
+}: {
+  item: AssessmentSummary;
+  role: string;
+  userId: string;
+}) {
+  const router = useRouter();
+  const canClaim =
+    (role === "writer" || role === "admin") && item.status === "open";
+  const canCancel =
+    (role === "admin" || item.userId === userId) && item.status === "open";
+  const refreshAfterAction = (action: Promise<unknown>) => {
+    void action.then(
+      () => router.refresh(),
+      () => router.refresh(),
+    );
+  };
+
+  return (
+    <div className="w-full rounded-lg border bg-background p-2 shadow-xs">
+      <div className="grid gap-2 border-l-[3px] border-primary/40 pl-2">
+        <div className="flex items-start justify-between gap-2">
+          <Link
+            className="min-w-0 text-sm font-medium hover:underline"
+            href={`/assessments/${item.id}`}
+          >
+            <span className="line-clamp-2">{item.title}</span>
+          </Link>
+          <Badge variant={statusVariant(item.status)}>
+            {statusLabel(item.status)}
+          </Badge>
+        </div>
+        <div className="text-muted-foreground text-xs">
+          {formatDateTime(item.deadlineAt)}
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <Badge variant="outline">{item.topic}</Badge>
+          <Badge variant="secondary">
+            {formatMoney(item.priceCents, item.currency)}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 truncate text-muted-foreground text-xs">
+            {item.user?.name ?? "User"}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {canClaim ? (
+              <Button
+                aria-label="Claim assessment"
+                onClick={() =>
+                  refreshAfterAction(
+                    claimAssessmentAction(actionFormData(item.id)),
+                  )
+                }
+                size="icon-sm"
+                variant="outline"
+              >
+                <HandIcon />
+              </Button>
+            ) : null}
+            {canCancel ? (
+              <Button
+                aria-label="Cancel assessment"
+                onClick={() =>
+                  refreshAfterAction(
+                    cancelAssessmentAction(actionFormData(item.id)),
+                  )
+                }
+                size="icon-sm"
+                variant="destructive-outline"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssessmentTimeline({
+  items,
+  role,
+  userId,
+}: {
+  items: AssessmentSummary[];
+  role: string;
+  userId: string;
+}) {
+  const [today] = React.useState(() => startOfDay(new Date()));
+  const [selectedDate, setSelectedDate] = React.useState(() => today);
+  const viewportRef = React.useRef<HTMLDivElement | null>(null);
+  const selectedDateKey = selectedDate.toISOString();
+  const { days, end, start } = React.useMemo(
+    () => getTimelineRange(items, today),
+    [items, today],
+  );
+  const selectedDayIndex = Math.max(
+    0,
+    days.findIndex((day) => isSameDay(day, selectedDate)),
+  );
+  const itemPlacements = React.useMemo(() => {
+    const rowsByDay = new Map<string, number>();
+
+    return items
+      .map((item) => {
+        const itemDate = item.deadlineAt ?? item.createdAt;
+        const dayIndex = days.findIndex((day) => isSameDay(itemDate, day));
+
+        if (dayIndex < 0) {
+          return null;
+        }
+
+        const dayKey = days[dayIndex]?.toISOString() ?? String(dayIndex);
+        const row = rowsByDay.get(dayKey) ?? 0;
+        rowsByDay.set(dayKey, row + 1);
+
+        return {
+          dayIndex,
+          item,
+          row,
+        };
+      })
+      .filter(
+        (
+          placement,
+        ): placement is {
+          dayIndex: number;
+          item: AssessmentSummary;
+          row: number;
+        } => placement !== null,
+      );
+  }, [days, items]);
+  const maxTimelineRows = Math.max(
+    1,
+    ...itemPlacements.map((placement) => placement.row + 1),
+  );
+  const timelineContentHeight =
+    TIMELINE_HEADER_HEIGHT + 24 + maxTimelineRows * TIMELINE_CARD_HEIGHT;
+  const visibleCount = days.reduce(
+    (count, day) =>
+      count +
+      items.filter((item) => item.deadlineAt && isSameDay(item.deadlineAt, day))
+        .length,
+    0,
+  );
+  const selectDate = React.useCallback(
+    (date: Date) => {
+      const boundedTime = Math.min(
+        Math.max(startOfDay(date).getTime(), start.getTime()),
+        end.getTime(),
+      );
+      setSelectedDate(new Date(boundedTime));
+    },
+    [end, start],
+  );
+
+  React.useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    const targetLeft =
+      selectedDayIndex * TIMELINE_DAY_WIDTH -
+      viewport.clientWidth / 2 +
+      TIMELINE_DAY_WIDTH / 2;
+
+    viewport.scrollTo({
+      behavior: "smooth",
+      left: Math.max(0, targetLeft),
+    });
+  }, [selectedDayIndex, selectedDateKey]);
+
+  return (
+    <Frame className="min-w-0 overflow-hidden">
+      <FramePanel className="min-w-0 overflow-hidden p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b p-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <CalendarDays className="size-4 text-muted-foreground" />
+            <div className="truncate text-sm font-medium">
+              {formatTimelineRange(start, end)}
+            </div>
+            <Badge variant="outline">{visibleCount} due</Badge>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              aria-label="Previous day"
+              onClick={() => selectDate(addDays(selectedDate, -1))}
+              size="icon-sm"
+              variant="outline"
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              onClick={() => selectDate(today)}
+              size="sm"
+              variant="outline"
+            >
+              Today
+            </Button>
+            <Button
+              aria-label="Next day"
+              onClick={() => selectDate(addDays(selectedDate, 1))}
+              size="icon-sm"
+              variant="outline"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+        </div>
+        <ScrollArea
+          className="h-[calc(100dvh-250px)] min-h-0 max-h-[560px] max-w-full overflow-hidden"
+          hideScrollbar
+          scrollFade
+          viewportRef={viewportRef}
+        >
+          <div className="relative h-full">
+            <div
+              className="relative"
+              style={{
+                height: `max(100%, ${timelineContentHeight}px)`,
+                width: `${
+                  Math.max(days.length, 1) * TIMELINE_DAY_WIDTH +
+                  TIMELINE_CARD_WIDTH
+                }px`,
+              }}
+            >
+              <div
+                className="grid border-b bg-muted/32"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.max(days.length, 1)}, minmax(${TIMELINE_DAY_WIDTH}px, ${TIMELINE_DAY_WIDTH}px))`,
+                }}
+              >
+                {days.map((day) => (
+                  <button
+                    className={cn(
+                      "border-r p-2 text-center text-muted-foreground text-xs font-medium transition-colors last:border-r-0 hover:bg-accent hover:text-foreground",
+                      isSameDay(day, selectedDate) && "bg-background text-foreground",
+                    )}
+                    key={day.toISOString()}
+                    onClick={() => selectDate(day)}
+                    type="button"
+                  >
+                    {formatTimelineDay(day)}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="absolute top-[37px] bottom-0 left-0 grid"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.max(days.length, 1)}, minmax(${TIMELINE_DAY_WIDTH}px, ${TIMELINE_DAY_WIDTH}px))`,
+                }}
+              >
+                {days.map((day) => (
+                  <div
+                    className={cn(
+                      "border-r last:border-r-0",
+                      isSameDay(day, selectedDate) && "bg-accent/24",
+                    )}
+                    key={day.toISOString()}
+                  />
+                ))}
+              </div>
+              {itemPlacements.map(({ dayIndex, item, row }) => (
+                <div
+                  className="absolute z-10"
+                  key={item.id}
+                  style={{
+                    left: dayIndex * TIMELINE_DAY_WIDTH + 14,
+                    top:
+                      TIMELINE_HEADER_HEIGHT +
+                      16 +
+                      row * TIMELINE_CARD_HEIGHT,
+                    width: TIMELINE_CARD_WIDTH,
+                  }}
+                >
+                  <TimelineAssessmentCard
+                    item={item}
+                    role={role}
+                    userId={userId}
+                  />
+                </div>
+              ))}
+            </div>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-destructive"
+              style={{
+                left:
+                  selectedDayIndex * TIMELINE_DAY_WIDTH +
+                  TIMELINE_DAY_WIDTH / 2,
+              }}
+            >
+              <div className="absolute -top-px left-1/2 size-2 -translate-x-1/2 rotate-45 bg-destructive" />
+            </div>
+          </div>
+        </ScrollArea>
+      </FramePanel>
+    </Frame>
+  );
 }
 
 function AssessmentCard({
@@ -471,6 +859,7 @@ export function AssessmentResults({
       Math.min(currentCount + CARD_BATCH_SIZE, filteredItems.length),
     );
   }, [filteredItems.length]);
+  const showTimeline = role === "writer";
 
   React.useEffect(() => {
     const node = loadMoreRef.current;
@@ -492,7 +881,7 @@ export function AssessmentResults({
   }, [hasMoreCards, showMoreCards]);
 
   return (
-    <Tabs defaultValue="cards">
+    <Tabs className="min-w-0" defaultValue="cards">
       <div className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
           <TabsList>
@@ -504,6 +893,12 @@ export function AssessmentResults({
               <TableProperties />
               Table
             </TabsTrigger>
+            {showTimeline ? (
+              <TabsTrigger value="timeline">
+                <CalendarDays />
+                Timeline
+              </TabsTrigger>
+            ) : null}
           </TabsList>
           <div className="text-muted-foreground text-sm">
             Showing {filteredItems.length} of {items.length}
@@ -584,6 +979,15 @@ export function AssessmentResults({
           totalPages={totalPages}
         />
       </TabsContent>
+      {showTimeline ? (
+        <TabsContent className="min-w-0 overflow-hidden" value="timeline">
+          <AssessmentTimeline
+            items={filteredItems}
+            role={role}
+            userId={userId}
+          />
+        </TabsContent>
+      ) : null}
     </Tabs>
   );
 }

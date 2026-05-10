@@ -10,11 +10,13 @@ export function ScrollArea({
   hideScrollbar = false,
   scrollFade = false,
   scrollbarGutter = false,
+  viewportRef,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   hideScrollbar?: boolean;
   scrollFade?: boolean;
   scrollbarGutter?: boolean;
+  viewportRef?: React.Ref<HTMLDivElement>;
 }): React.ReactElement {
   return (
     <ScrollAreaPrimitive.Root
@@ -23,7 +25,7 @@ export function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         className={cn(
-          "h-full rounded-[inherit] outline-none transition-shadows focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background data-has-overflow-y:overscroll-y-contain data-has-overflow-x:overscroll-x-contain",
+          "size-full rounded-[inherit] outline-none transition-shadows focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background data-has-overflow-y:overscroll-y-contain data-has-overflow-x:overscroll-x-contain",
           scrollFade &&
             "mask-t-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-start)))] mask-b-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-end)))] mask-l-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-end)))] [--fade-size:1.5rem]",
           scrollbarGutter &&
@@ -32,6 +34,7 @@ export function ScrollArea({
             "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         )}
         data-slot="scroll-area-viewport"
+        ref={viewportRef}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
